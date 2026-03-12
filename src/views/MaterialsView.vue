@@ -103,26 +103,6 @@ watch(filteredProducts, () => {
       </div>
     </div>
 
-
-    <div class="rounded-[1.3rem] border border-rose-100 bg-white p-2 shadow-[0_12px_30px_rgba(117,49,108,0.05)]">
-      <div class="grid grid-cols-2 gap-2">
-        <RouterLink
-          to="/materials/free"
-          class="inline-flex items-center justify-center rounded-[0.95rem] px-4 py-2.5 text-sm font-semibold transition"
-          :class="props.mode === 'free' ? 'bg-primary text-white shadow-[0_10px_22px_rgba(237,69,97,0.22)]' : 'bg-rose-50/70 text-slate-600 hover:text-primary'"
-        >
-          Free materials
-        </RouterLink>
-        <RouterLink
-          to="/materials/paid"
-          class="inline-flex items-center justify-center rounded-[0.95rem] px-4 py-2.5 text-sm font-semibold transition"
-          :class="props.mode === 'paid' ? 'bg-primary text-white shadow-[0_10px_22px_rgba(237,69,97,0.22)]' : 'bg-rose-50/70 text-slate-600 hover:text-primary'"
-        >
-          Paid materials
-        </RouterLink>
-      </div>
-    </div>
-
     <div class="rounded-[1.5rem] border border-rose-100 bg-white p-4 shadow-[0_12px_34px_rgba(117,49,108,0.06)]">
       <label class="mb-2 block text-[11px] font-semibold uppercase tracking-[0.17em] text-slate-500">
         Search materials
