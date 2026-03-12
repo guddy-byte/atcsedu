@@ -16,6 +16,7 @@ import ExamTrainingView from '../views/ExamTrainingView.vue'
 import HomeView from '../views/HomeView.vue'
 import MaterialsView from '../views/MaterialsView.vue'
 import { isStudentAuthenticated, resolveProtectedStudentRoute } from '../utils/studentAuth'
+import { isAdminAuthenticated } from '../utils/adminAuth'
 
 const routes: RouteRecordRaw[] = [
   { path: '/', name: 'home', component: HomeView },
@@ -91,11 +92,15 @@ const router = createRouter({
 })
 
 router.beforeEach((to) => {
-  if (to.name !== 'exam-training' || isStudentAuthenticated()) {
-    return true
+  if (to.name === 'exam-training' && !isStudentAuthenticated()) {
+    return resolveProtectedStudentRoute('/exam-training')
   }
 
-  return resolveProtectedStudentRoute('/exam-training')
+  if (to.name === 'admin' && !isAdminAuthenticated()) {
+    return '/admin/auth/login'
+  }
+
+  return true
 })
 
 export default router

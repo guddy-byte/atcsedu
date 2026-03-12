@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 
 import MaterialCard from '../components/MaterialCard.vue'
 import { useCatalogStore } from '../stores/catalog'
