@@ -27,6 +27,7 @@ const router = useRouter()
 const email = ref('')
 const secret = ref('')
 const errorMessage = ref('')
+const showPassword = ref(false)
 
 const redirectTarget = computed(() =>
   typeof route.query.redirect === 'string' ? route.query.redirect : undefined,
@@ -51,6 +52,19 @@ const secretLabel = computed(() => (props.mode === 'signup' ? 'Create password' 
 const secretPlaceholder = computed(() =>
   props.mode === 'signup' ? 'Create a secure password' : 'Enter your password',
 )
+const authChecklist = computed(() =>
+  props.mode === 'signup'
+    ? [
+        'Create your account in less than 1 minute.',
+        'Access free and paid exam preparation instantly.',
+        'Track progress from your personal student dashboard.',
+      ]
+    : [
+        'Resume from where you stopped on exam practice.',
+        'Access your purchased exam packs and free practice tests.',
+        'View updated dashboard stats after each attempt.',
+      ],
+)
 
 const submitPrimaryAction = () => {
   const normalizedEmail = email.value.trim().toLowerCase()
@@ -63,8 +77,8 @@ const submitPrimaryAction = () => {
       return
     }
 
-    if (!normalizedSecret) {
-      errorMessage.value = 'Create a password before continuing.'
+    if (!normalizedSecret || normalizedSecret.length < 6) {
+      errorMessage.value = 'Create a password with at least 6 characters.'
       return
     }
 
@@ -92,7 +106,7 @@ const submitPrimaryAction = () => {
     const loggedIn = loginStudent(normalizedEmail, normalizedSecret)
 
     if (!loggedIn) {
-      errorMessage.value = 'The login details do not match any registered or demo student account.'
+      errorMessage.value = 'Invalid email/password. Check your details and try again.'
       return
     }
 
@@ -105,51 +119,75 @@ const submitPrimaryAction = () => {
 </script>
 
 <template>
-  <section class="mx-auto grid w-full max-w-5xl gap-6 rounded-[2rem] border border-white/75 bg-white/88 p-6 shadow-[0_20px_70px_rgba(117,49,108,0.08)] lg:grid-cols-[minmax(0,0.95fr)_minmax(360px,1.05fr)] lg:p-8">
-    <div class="rounded-[1.7rem] bg-secondary p-6 text-white">
-      <p class="text-xs font-semibold uppercase tracking-[0.28em] text-rose-100">{{ eyebrow }}</p>
-      <h2 class="mt-3 text-3xl font-extrabold tracking-tight">{{ title }}</h2>
-      <p class="mt-4 text-sm leading-7 text-rose-50/90">{{ description }}</p>
+  <section class="mx-auto grid w-full max-w-6xl gap-6 rounded-[2rem] border border-white/80 bg-white p-4 shadow-[0_25px_70px_rgba(117,49,108,0.1)] md:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(380px,1fr)] lg:p-8">
+    <div class="rounded-[1.6rem] bg-[linear-gradient(160deg,#ec4899_0%,#e11d48_55%,#7c3aed_100%)] p-6 text-white sm:p-7">
+      <p class="text-xs font-semibold uppercase tracking-[0.25em] text-rose-100">{{ eyebrow }}</p>
+      <h2 class="mt-3 text-3xl font-extrabold tracking-tight sm:text-[2rem]">{{ title }}</h2>
+      <p class="mt-4 max-w-md text-sm leading-7 text-rose-50/95">{{ description }}</p>
 
-      <div class="mt-8 grid gap-3 text-sm text-rose-50/90">
-        <div class="rounded-[1.25rem] bg-white/10 p-4">Scaffolded route structure is in place for future UI refinement.</div>
-        <div class="rounded-[1.25rem] bg-white/10 p-4">You can now connect real API flows, OTP validation, and persistence.</div>
-        <div v-if="mode === 'login'" class="rounded-[1.25rem] bg-white/12 p-4">
-          Demo login: {{ DEMO_STUDENT_CREDENTIALS.email }} / {{ DEMO_STUDENT_CREDENTIALS.password }}
+      <div class="mt-6 grid gap-2.5">
+        <div
+          v-for="item in authChecklist"
+          :key="item"
+          class="rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm"
+        >
+          {{ item }}
         </div>
+      </div>
+
+      <div v-if="mode === 'login'" class="mt-6 rounded-xl border border-white/20 bg-white/12 px-4 py-3 text-sm">
+        <p class="font-semibold">Demo login</p>
+        <p class="mt-1 break-all text-rose-100">{{ DEMO_STUDENT_CREDENTIALS.email }}</p>
+        <p class="text-rose-100">{{ DEMO_STUDENT_CREDENTIALS.password }}</p>
       </div>
     </div>
 
-    <form class="grid gap-4 self-center rounded-[1.7rem] bg-rose-50 p-6" @submit.prevent="submitPrimaryAction">
+    <form class="grid content-start gap-4 rounded-[1.6rem] border border-rose-100 bg-rose-50/55 p-5 sm:p-6" @submit.prevent="submitPrimaryAction">
+      <div>
+        <h3 class="text-xl font-extrabold tracking-tight text-slate-900">Welcome 👋</h3>
+        <p class="mt-1 text-sm text-slate-600">Use your details below to continue.</p>
+      </div>
+
       <label class="grid gap-2">
         <span class="text-sm font-semibold text-slate-700">Email address</span>
         <input
           v-model="email"
           type="email"
           placeholder="student@school.edu"
-          class="rounded-[1rem] border border-rose-100 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
-        />
-      </label>
-      <label class="grid gap-2">
-        <span class="text-sm font-semibold text-slate-700">{{ secretLabel }}</span>
-        <input
-          v-model="secret"
-          type="password"
-          :placeholder="secretPlaceholder"
-          class="rounded-[1rem] border border-rose-100 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+          class="rounded-[0.95rem] border border-rose-100 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-primary/45 focus:ring-2 focus:ring-primary/10"
         />
       </label>
 
-      <p v-if="errorMessage" class="text-sm font-medium text-primary">
+      <label class="grid gap-2">
+        <span class="text-sm font-semibold text-slate-700">{{ secretLabel }}</span>
+        <div class="flex items-center rounded-[0.95rem] border border-rose-100 bg-white pr-2 focus-within:border-primary/45 focus-within:ring-2 focus-within:ring-primary/10">
+          <input
+            v-model="secret"
+            :type="showPassword ? 'text' : 'password'"
+            :placeholder="secretPlaceholder"
+            class="w-full rounded-[0.95rem] bg-transparent px-4 py-3 text-sm text-slate-700 outline-none placeholder:text-slate-400"
+          />
+          <button
+            type="button"
+            class="rounded-full px-2 py-1 text-xs font-semibold text-slate-500 hover:text-primary"
+            @click="showPassword = !showPassword"
+          >
+            {{ showPassword ? 'Hide' : 'Show' }}
+          </button>
+        </div>
+      </label>
+
+      <p v-if="errorMessage" class="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-primary">
         {{ errorMessage }}
       </p>
 
       <button
         type="submit"
-        class="inline-flex items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white shadow-[0_16px_26px_rgba(237,69,97,0.22)]"
+        class="inline-flex items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_24px_rgba(237,69,97,0.24)]"
       >
         {{ primaryLabel }}
       </button>
+
       <RouterLink
         :to="secondaryRoute"
         class="inline-flex items-center justify-center rounded-full border border-rose-100 bg-white px-5 py-3 text-sm font-semibold text-secondary"

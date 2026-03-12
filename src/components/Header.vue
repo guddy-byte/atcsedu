@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
+
 import logoImage from '../images/logo.png'
-import { resolveProtectedStudentRoute } from '../utils/studentAuth'
+import { getStudentSession, logoutStudent, resolveProtectedStudentRoute } from '../utils/studentAuth'
 
 const route = useRoute()
+const router = useRouter()
 const mobileMenuOpen = ref(false)
+const profileMenuOpen = ref(false)
 
 const menuItems = [
   { label: 'Home', path: '/' },
@@ -14,6 +17,9 @@ const menuItems = [
   { label: 'Exam Training', path: '/exam-training', requiresStudentAuth: true },
   { label: 'Contact Us', path: '/contact' },
 ]
+
+const studentSession = computed(() => getStudentSession())
+const isStudentDashboard = computed(() => route.path.startsWith('/exam-training') && !!studentSession.value)
 
 const isActive = computed(() => (path: string) => {
   if (route.path === path) {
@@ -38,12 +44,47 @@ const toggleMobileMenu = () => {
   mobileMenuOpen.value = !mobileMenuOpen.value
 }
 
+const closeProfileMenu = () => {
+  profileMenuOpen.value = false
+}
+
+const toggleProfileMenu = () => {
+  profileMenuOpen.value = !profileMenuOpen.value
+}
+
+const logoutAndGoHome = () => {
+  logoutStudent()
+  closeProfileMenu()
+  router.push('/')
+}
+
+const handleDocumentClick = (event: MouseEvent) => {
+  const target = event.target as HTMLElement | null
+
+  if (!target?.closest('[data-profile-menu]')) {
+    closeProfileMenu()
+  }
+}
+
 watch(
   () => route.path,
   () => {
     closeMobileMenu()
+    closeProfileMenu()
   },
 )
+
+onMounted(() => {
+  if (typeof window !== 'undefined') {
+    window.addEventListener('click', handleDocumentClick)
+  }
+})
+
+onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('click', handleDocumentClick)
+  }
+})
 </script>
 
 <template>
@@ -60,6 +101,7 @@ watch(
           </RouterLink>
 
           <RouterLink
+            v-if="!isStudentDashboard"
             to="/admin/auth/login"
             class="header-chip hidden shrink-0 rounded-full px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] 2xl:inline-flex"
           >
@@ -67,52 +109,82 @@ watch(
           </RouterLink>
         </div>
 
-        <nav class="mx-3 hidden min-w-0 flex-1 items-center justify-center overflow-x-auto whitespace-nowrap [scrollbar-width:none] lg:flex">
-          <div class="flex flex-nowrap items-center gap-1.5 xl:gap-2">
-            <RouterLink
-              v-for="item in menuItems"
-              :key="item.path"
-              :to="getMenuTarget(item.path, item.requiresStudentAuth)"
-              class="header-menu-link shrink-0 px-3 py-2.5 text-sm font-medium transition xl:px-4"
-              :class="
-                isActive(item.path)
-                  ? 'header-menu-link-active'
-                  : 'header-menu-link-idle'
-              "
+        <template v-if="isStudentDashboard">
+          <div class="relative ml-auto" data-profile-menu>
+            <button
+              type="button"
+              class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-rose-100 bg-white text-sm font-bold text-primary"
+              aria-label="Open student profile menu"
+              @click.stop="toggleProfileMenu"
             >
-              {{ item.label }}
+              {{ studentSession?.email?.charAt(0).toUpperCase() }}
+            </button>
+
+            <div
+              v-if="profileMenuOpen"
+              class="absolute right-0 top-[calc(100%+0.6rem)] w-56 rounded-2xl border border-rose-100 bg-white p-2 shadow-[0_18px_32px_rgba(15,23,42,0.14)]"
+            >
+              <p class="px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Student profile</p>
+              <p class="truncate px-3 pb-2 text-xs text-slate-500">{{ studentSession?.email }}</p>
+              <button
+                type="button"
+                class="flex w-full items-center justify-start rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-rose-50 hover:text-primary"
+                @click="logoutAndGoHome"
+              >
+                Log out
+              </button>
+            </div>
+          </div>
+        </template>
+
+        <template v-else>
+          <nav class="mx-3 hidden min-w-0 flex-1 items-center justify-center overflow-x-auto whitespace-nowrap [scrollbar-width:none] lg:flex">
+            <div class="flex flex-nowrap items-center gap-1.5 xl:gap-2">
+              <RouterLink
+                v-for="item in menuItems"
+                :key="item.path"
+                :to="getMenuTarget(item.path, item.requiresStudentAuth)"
+                class="header-menu-link shrink-0 px-3 py-2.5 text-sm font-medium transition xl:px-4"
+                :class="
+                  isActive(item.path)
+                    ? 'header-menu-link-active'
+                    : 'header-menu-link-idle'
+                "
+              >
+                {{ item.label }}
+              </RouterLink>
+            </div>
+          </nav>
+
+          <div class="hidden shrink-0 items-center gap-2 xl:flex xl:gap-3">
+            <RouterLink
+              to="/auth/login"
+              class="header-secondary-link hidden shrink-0 rounded-full px-3 py-2.5 text-sm font-semibold xl:inline-flex"
+            >
+              Student Login
+            </RouterLink>
+            <RouterLink
+              to="/auth/signup"
+              class="header-cta inline-flex shrink-0 items-center justify-center rounded-full px-4 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 xl:px-5"
+            >
+              Get Started
             </RouterLink>
           </div>
-        </nav>
 
-        <div class="hidden shrink-0 items-center gap-2 xl:flex xl:gap-3">
-          <RouterLink
-            to="/auth/login"
-            class="header-secondary-link hidden shrink-0 rounded-full px-3 py-2.5 text-sm font-semibold xl:inline-flex"
+          <button
+            type="button"
+            class="header-hamburger inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl lg:hidden"
+            :aria-expanded="mobileMenuOpen"
+            aria-label="Toggle navigation menu"
+            @click="toggleMobileMenu"
           >
-            Student Login
-          </RouterLink>
-          <RouterLink
-            to="/auth/signup"
-            class="header-cta inline-flex shrink-0 items-center justify-center rounded-full px-4 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 xl:px-5"
-          >
-            Get Started
-          </RouterLink>
-        </div>
-
-        <button
-          type="button"
-          class="header-hamburger inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl lg:hidden"
-          :aria-expanded="mobileMenuOpen"
-          aria-label="Toggle navigation menu"
-          @click="toggleMobileMenu"
-        >
-          <span class="header-hamburger-lines" :class="{ open: mobileMenuOpen }">
-            <span />
-            <span />
-            <span />
-          </span>
-        </button>
+            <span class="header-hamburger-lines" :class="{ open: mobileMenuOpen }">
+              <span />
+              <span />
+              <span />
+            </span>
+          </button>
+        </template>
       </div>
     </div>
 
