@@ -2,11 +2,11 @@
 import { ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
-import { DEMO_ADMIN_CREDENTIALS, loginAdmin } from '../../utils/adminAuth'
+import { loginAdmin } from '../../utils/adminAuth'
 
 const router = useRouter()
-const email = ref(DEMO_ADMIN_CREDENTIALS.email)
-const password = ref(DEMO_ADMIN_CREDENTIALS.password)
+const email = ref('')
+const password = ref('')
 const errorMessage = ref('')
 const showPassword = ref(false)
 
@@ -41,11 +41,6 @@ const submitLogin = () => {
         <p class="mt-1 break-all text-slate-300">/admin</p>
       </div>
 
-      <div class="mt-3 rounded-xl border border-white/15 bg-white/5 px-4 py-4 text-sm">
-        <p class="font-semibold">Demo credentials</p>
-        <p class="mt-1 break-all text-slate-300">{{ DEMO_ADMIN_CREDENTIALS.email }}</p>
-        <p class="text-slate-300">{{ DEMO_ADMIN_CREDENTIALS.password }}</p>
-      </div>
     </div>
 
     <form class="grid content-start gap-4 rounded-[1.6rem] border border-slate-200 bg-slate-50/70 p-5 sm:p-6" @submit.prevent="submitLogin">

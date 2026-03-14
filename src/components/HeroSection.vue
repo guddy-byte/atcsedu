@@ -50,6 +50,7 @@ const trustedUsers = [
 
         <div class="flex flex-wrap items-center gap-3">
           <RouterLink
+            v-if="false"
             to="/materials/free"
             class="inline-flex items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-bold text-rose-600 transition hover:-translate-y-0.5"
           >

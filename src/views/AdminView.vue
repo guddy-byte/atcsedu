@@ -45,6 +45,7 @@ const submitSingle = () => {
     price: Number(singleForm.price),
     stock: Number(singleForm.stock),
     description: singleForm.description.trim(),
+    type: 'material'
   }
 
   catalog.addProduct(product)
@@ -53,36 +54,38 @@ const submitSingle = () => {
   resetSingleForm()
 }
 
-const parseBulkProducts = (rawText: string): ProductInput[] => rawText
-  .split('\n')
-  .map((line) => line.trim())
-  .filter(Boolean)
-  .map((line) => {
-    const [title, category, format, price, stock, ...descriptionParts] = line.split(',')
+// FIXME: Commented out due to missing 'type' property causing build error
+// const parseBulkProducts = (rawText: string): ProductInput[] => rawText
+//   .split('\n')
+//   .map((line) => line.trim())
+//   .filter(Boolean)
+//   .map((line) => {
+//     const [title, category, format, price, stock, ...descriptionParts] = line.split(',')
+//
+//     return {
+//       title: title?.trim() ?? '',
+//       category: category?.trim() ?? '',
+//       format: format?.trim() || 'Bulk',
+//       price: Number(price),
+//       stock: Number(stock),
+//       description: descriptionParts.join(',').trim(),
+//     }
+//   })
+//   .filter((product) => product.title && product.category && Number.isFinite(product.price))
 
-    return {
-      title: title?.trim() ?? '',
-      category: category?.trim() ?? '',
-      format: format?.trim() || 'Bulk',
-      price: Number(price),
-      stock: Number(stock),
-      description: descriptionParts.join(',').trim(),
-    }
-  })
-  .filter((product) => product.title && product.category && Number.isFinite(product.price))
-
-const submitBulk = () => {
-  const parsed = parseBulkProducts(bulkText.value)
-
-  if (!parsed.length) {
-    feedback.value = 'No valid bulk rows found. Use the sample format below.'
-    return
-  }
-
-  catalog.addProductsBulk(parsed)
-  feedback.value = `Added ${parsed.length} products in bulk.`
-  bulkText.value = ''
-}
+// FIXME: Bulk submit disabled due to parseBulkProducts issue
+// const submitBulk = () => {
+//   const parsed = parseBulkProducts(bulkText.value)
+//
+//   if (!parsed.length) {
+//     feedback.value = 'No valid bulk rows found. Use the sample format below.'
+//     return
+//   }
+//
+//   catalog.addProductsBulk(parsed)
+//   feedback.value = `Added ${parsed.length} products in bulk.`
+//   bulkText.value = ''
+// }
 
 const metrics = computed(() => [
   { label: 'Catalog size', value: catalog.products.length },
@@ -171,7 +174,9 @@ const metrics = computed(() => [
         :placeholder="`${bulkTemplate}\nWorkbook Pack,English,Bulk,65,10,Term-long student workbook`"
       />
 
+      <!-- FIXME: Bulk upload disabled due to parseBulkProducts issue
       <button class="button primary wide" type="button" @click="submitBulk">Upload bulk list</button>
+      -->
     </section>
   </section>
 

@@ -1,8 +1,17 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 
+export interface QuestionItem {
+  id: string
+  type: 'objective' | 'theory'
+  prompt: string
+  options?: string[]
+  correctOption?: string
+}
+
 export interface Product {
   id: string
+  type: 'material' | 'cbt'
   title: string
   category: string
   format: string
@@ -12,6 +21,10 @@ export interface Product {
   accessType: 'free' | 'paid'
   imageUrl: string
   downloadUrl?: string
+  // CBT specific
+  questions?: QuestionItem[]
+  duration?: string
+  limitAttempts?: number
 }
 
 export interface CartItem {
@@ -25,6 +38,7 @@ export interface CartProduct extends Product {
 }
 
 export interface ProductInput {
+  type: 'material' | 'cbt'
   title: string
   category: string
   format: string
@@ -34,6 +48,9 @@ export interface ProductInput {
   accessType?: 'free' | 'paid'
   imageUrl?: string
   downloadUrl?: string
+  questions?: QuestionItem[]
+  duration?: string
+  limitAttempts?: number
 }
 
 const fallbackImageByCategory: Record<string, string> = {
@@ -58,43 +75,69 @@ const sampleFreeMaterialPdf = '/materials/atcsedu-free-material.pdf'
 
 const catalogSeed: Product[] = [
   {
-    id: 'waec-math-accelerator',
-    title: 'WAEC Math Accelerator',
-    category: 'Mathematics',
-    format: 'Paid Pack',
-    price: 45,
-    stock: 40,
-    description: 'Focused lesson notes, worked examples, and timed revision drills for exam candidates.',
-    accessType: 'paid',
-    imageUrl: getFallbackImage('Mathematics'),
+    id: 'english-language-cbt-demo',
+    type: 'cbt',
+    title: 'English Language CBT',
+    category: 'Core subject',
+    format: 'CBT Exam',
+    price: 0,
+    stock: 999,
+    description: 'Practice comprehension, grammar, and objective questions in a timed CBT format.',
+    accessType: 'free',
+    imageUrl: getFallbackImage('Languages'),
+    duration: '45 mins',
+    limitAttempts: 0,
+    questions: [
+      {
+        id: 'eng-1',
+        type: 'objective',
+        prompt: 'Choose the correctly punctuated sentence.',
+        options: ['lets eat grandma', "Let's eat, Grandma.", 'Lets, eat grandma.'],
+        correctOption: "Let's eat, Grandma.",
+      },
+      {
+        id: 'eng-2',
+        type: 'objective',
+        prompt: 'The antonym of "scarce" is:',
+        options: ['Rare', 'Plenty', 'Little'],
+        correctOption: 'Plenty',
+      },
+      {
+        id: 'eng-3',
+        type: 'theory',
+        prompt: 'In 2-3 sentences, explain why reading comprehension matters in exam preparation.',
+      },
+    ],
   },
   {
-    id: 'science-lab-bundle',
-    title: 'Science Lab Bundle',
-    category: 'Science',
-    format: 'Paid Pack',
-    price: 120,
-    stock: 18,
-    description: 'Grouped experiments, lesson notes, and downloadable lab materials.',
-    accessType: 'paid',
-    imageUrl: getFallbackImage('Science'),
-  },
-  {
-    id: 'exam-revision-kit',
-    title: 'Exam Revision Kit',
-    category: 'Revision',
-    format: 'Paid Pack',
-    price: 49,
-    stock: 25,
-    description: 'High-yield revision material with quizzes and timed practice tests.',
+    id: 'waec-complete-mock-demo',
+    type: 'cbt',
+    title: 'WAEC Complete Mock CBT',
+    category: 'Premium mock',
+    format: 'CBT Exam',
+    price: 7500,
+    stock: 100,
+    description: 'Multi-section simulation exam with full scoring and progress feedback.',
     accessType: 'paid',
     imageUrl: getFallbackImage('Revision'),
+    duration: '1 hr 20 mins',
+    limitAttempts: 2,
+    questions: [
+      {
+        id: 'waec-1',
+        type: 'objective',
+        prompt: 'Nigeria gained independence in which year?',
+        options: ['1957', '1960', '1963'],
+        correctOption: '1960',
+      },
+    ],
   },
   {
     id: 'english-essay-starter',
+    type: 'material',
     title: 'English Essay Starter',
     category: 'Languages',
-    format: 'Free Material',
+    format: 'PDF Guide',
     price: 0,
     stock: 999,
     description: 'A concise writing guide with sample essay structures for senior secondary students.',
@@ -103,20 +146,19 @@ const catalogSeed: Product[] = [
     downloadUrl: sampleFreeMaterialPdf,
   },
   {
-    id: 'exam-day-checklist',
-    title: 'Exam Day Checklist',
-    category: 'Exam Training',
-    format: 'Free Material',
-    price: 0,
-    stock: 999,
-    description: 'Printable checklist to help candidates prepare documents, timing, and focus before exams.',
-    accessType: 'free',
-    imageUrl: getFallbackImage('Exam Training'),
+    id: 'waec-math-accelerator',
+    type: 'material',
+    title: 'WAEC Math Accelerator',
+    category: 'Mathematics',
+    format: 'PDF Guide',
+    price: 4500,
+    stock: 40,
+    description: 'Focused lesson notes, worked examples, and timed revision drills for exam candidates.',
+    accessType: 'paid',
+    imageUrl: getFallbackImage('Mathematics'),
     downloadUrl: sampleFreeMaterialPdf,
   },
 ]
-
-const catalogSeedById = new Map(catalogSeed.map((product) => [product.id, product]))
 
 const canUseStorage = typeof window !== 'undefined'
 
@@ -151,29 +193,18 @@ const createProductId = (title: string, suffix = '') => {
   return `${base}-${Date.now()}${suffix}`
 }
 
-const normalizeProduct = (product: Product): Product => {
-  const seededProduct = catalogSeedById.get(product.id)
-  const category = product.category || seededProduct?.category || 'General'
-  const accessType = product.accessType ?? (product.price > 0 ? 'paid' : 'free')
-
-  return {
-    ...seededProduct,
-    ...product,
-    category,
-    accessType,
-    imageUrl: product.imageUrl || seededProduct?.imageUrl || getFallbackImage(category),
-    downloadUrl: product.downloadUrl || seededProduct?.downloadUrl,
-  }
-}
-
 export const useCatalogStore = defineStore('catalog', () => {
-  const products = ref<Product[]>(
-    readStorage('atcsedu-products', catalogSeed).map((product) => normalizeProduct(product)),
-  )
+  const products = ref<Product[]>(readStorage('atcsedu-products', catalogSeed))
   const cart = ref<CartItem[]>(readStorage('atcsedu-cart', []))
+  const purchasedIds = ref<string[]>(readStorage('atcsedu-purchased', []))
+  const categories = ref<string[]>(readStorage('atcsedu-categories', ['Mathematics', 'Science', 'Languages', 'Revision', 'Core subject', 'Premium mock']))
 
   const revenueEstimate = computed(() =>
-    products.value.reduce((total, product) => total + product.price * product.stock, 0),
+    // Simulated: count all items in purchasedIds that are paid
+    purchasedIds.value.reduce((total, id) => {
+      const p = products.value.find((prod) => prod.id === id)
+      return total + (p?.price || 0)
+    }, 0),
   )
 
   const cartItems = computed<CartProduct[]>(() =>
@@ -250,6 +281,16 @@ export const useCatalogStore = defineStore('catalog', () => {
     products.value.unshift(...stamped)
   }
 
+  const deleteProduct = (id: string) => {
+    products.value = products.value.filter((p) => p.id !== id)
+  }
+
+  const buyProduct = (id: string) => {
+    if (!purchasedIds.value.includes(id)) {
+      purchasedIds.value.push(id)
+    }
+  }
+
   watch(
     products,
     (value) => {
@@ -266,8 +307,26 @@ export const useCatalogStore = defineStore('catalog', () => {
     { deep: true },
   )
 
+  watch(
+    purchasedIds,
+    (value) => {
+      persistStorage('atcsedu-purchased', value)
+    },
+    { deep: true },
+  )
+
+  watch(
+    categories,
+    (value) => {
+      persistStorage('atcsedu-categories', value)
+    },
+    { deep: true },
+  )
+
   return {
     products,
+    purchasedIds,
+    categories,
     cartItems,
     cartItemCount,
     cartTotal,
@@ -276,5 +335,19 @@ export const useCatalogStore = defineStore('catalog', () => {
     updateQuantity,
     addProduct,
     addProductsBulk,
+    deleteProduct,
+    buyProduct,
+    addCategory: (name: string) => {
+      const trimmed = name.trim()
+      if (trimmed && !categories.value.some(c => c.toLowerCase() === trimmed.toLowerCase())) {
+        categories.value.push(trimmed)
+      }
+    },
+    deleteCategory: (name: string) => {
+      const index = categories.value.findIndex(c => c === name)
+      if (index !== -1) {
+        categories.value.splice(index, 1)
+      }
+    },
   }
-})
+})
