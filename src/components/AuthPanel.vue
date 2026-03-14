@@ -4,7 +4,6 @@ import { RouterLink, useRoute, useRouter, type RouteLocationRaw } from 'vue-rout
 
 import {
   DEMO_STUDENT_CREDENTIALS,
-  hasRegisteredStudent,
   loginStudent,
   registerStudent,
 } from '../utils/studentAuth'
@@ -66,6 +65,12 @@ const authChecklist = computed(() =>
       ],
 )
 
+const fillStudentDemoCredentials = () => {
+  email.value = DEMO_STUDENT_CREDENTIALS.email
+  secret.value = DEMO_STUDENT_CREDENTIALS.password
+  errorMessage.value = ''
+}
+
 const submitPrimaryAction = () => {
   const normalizedEmail = email.value.trim().toLowerCase()
   const normalizedSecret = secret.value.trim()
@@ -88,11 +93,6 @@ const submitPrimaryAction = () => {
   }
 
   if (props.mode === 'login') {
-    if (!hasRegisteredStudent()) {
-      router.push(buildRouteWithRedirect('/auth/signup'))
-      return
-    }
-
     if (!normalizedEmail) {
       errorMessage.value = 'Enter your registered email address to continue.'
       return
@@ -106,7 +106,7 @@ const submitPrimaryAction = () => {
     const loggedIn = loginStudent(normalizedEmail, normalizedSecret)
 
     if (!loggedIn) {
-      errorMessage.value = 'Invalid email/password. Check your details and try again.'
+      errorMessage.value = 'Invalid email/password. Use your signup details or the demo credentials.'
       return
     }
 
@@ -139,6 +139,13 @@ const submitPrimaryAction = () => {
         <p class="font-semibold">Demo login</p>
         <p class="mt-1 break-all text-rose-100">{{ DEMO_STUDENT_CREDENTIALS.email }}</p>
         <p class="text-rose-100">{{ DEMO_STUDENT_CREDENTIALS.password }}</p>
+        <button
+          type="button"
+          class="mt-3 inline-flex rounded-full border border-white/30 px-3 py-1 text-xs font-semibold text-white hover:bg-white/10"
+          @click="fillStudentDemoCredentials"
+        >
+          Use demo credentials
+        </button>
       </div>
     </div>
 

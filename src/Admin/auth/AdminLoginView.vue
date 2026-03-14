@@ -2,13 +2,19 @@
 import { ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 
-import { loginAdmin } from '../../utils/adminAuth'
+import { DEMO_ADMIN_CREDENTIALS, loginAdmin } from '../../utils/adminAuth'
 
 const router = useRouter()
 const email = ref('')
 const password = ref('')
 const errorMessage = ref('')
 const showPassword = ref(false)
+
+const fillAdminDemoCredentials = () => {
+  email.value = DEMO_ADMIN_CREDENTIALS.email
+  password.value = DEMO_ADMIN_CREDENTIALS.password
+  errorMessage.value = ''
+}
 
 const submitLogin = () => {
   errorMessage.value = ''
@@ -39,6 +45,19 @@ const submitLogin = () => {
       <div class="mt-6 rounded-xl border border-white/15 bg-white/5 px-4 py-4 text-sm">
         <p class="font-semibold">Dashboard URL</p>
         <p class="mt-1 break-all text-slate-300">/admin</p>
+      </div>
+
+      <div class="mt-4 rounded-xl border border-white/15 bg-white/5 px-4 py-4 text-sm">
+        <p class="font-semibold">Demo admin credentials</p>
+        <p class="mt-1 break-all text-slate-300">{{ DEMO_ADMIN_CREDENTIALS.email }}</p>
+        <p class="text-slate-300">{{ DEMO_ADMIN_CREDENTIALS.password }}</p>
+        <button
+          type="button"
+          class="mt-3 inline-flex rounded-full border border-white/25 px-3 py-1 text-xs font-semibold text-slate-100 hover:bg-white/10"
+          @click="fillAdminDemoCredentials"
+        >
+          Use demo credentials
+        </button>
       </div>
 
     </div>

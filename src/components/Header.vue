@@ -180,6 +180,12 @@ onBeforeUnmount(() => {
           <template v-else>
             <div class="hidden shrink-0 items-center gap-2 xl:flex xl:gap-3">
               <RouterLink
+                to="/admin/auth/login"
+                class="header-secondary-link hidden shrink-0 rounded-full px-3 py-2.5 text-sm font-semibold xl:inline-flex"
+              >
+                Admin Login
+              </RouterLink>
+              <RouterLink
                 to="/auth/login"
                 class="header-secondary-link hidden shrink-0 rounded-full px-3 py-2.5 text-sm font-semibold xl:inline-flex"
               >
@@ -273,6 +279,14 @@ onBeforeUnmount(() => {
         </nav>
 
         <div class="mt-6 grid gap-3 border-t border-black/6 pt-5">
+          <RouterLink
+            to="/admin/auth/login"
+            class="header-secondary-link inline-flex items-center justify-center rounded-full px-4 py-3 text-sm font-semibold"
+            @click="closeMobileMenu"
+          >
+            Admin Login
+          </RouterLink>
+
           <RouterLink
             to="/auth/login"
             class="header-secondary-link inline-flex items-center justify-center rounded-full px-4 py-3 text-sm font-semibold"
