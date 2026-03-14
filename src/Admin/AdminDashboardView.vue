@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 
 import AdminOverviewCard from './components/AdminOverviewCard.vue'
-import AdminQuickLinks from './components/AdminQuickLinks.vue'
+
 import ProductModal from './components/ProductModal.vue'
 import { useCatalogStore } from '../stores/catalog'
 
@@ -10,6 +10,7 @@ const catalog = useCatalogStore()
 
 const showModal = ref(false)
 const modalType = ref<'material' | 'cbt' | 'bulk'>('material')
+const editProduct = ref<any>(null)
 
 const dashboardStats = computed(() => {
   const materials = catalog.products.filter(p => p.type === 'material')
@@ -51,7 +52,14 @@ const dashboardStats = computed(() => {
 
 const openAddModal = (type: 'material' | 'cbt' | 'bulk') => {
   modalType.value = type
+  editProduct.value = null;
   showModal.value = true
+}
+
+const openEditModal = (product: any) => {
+  modalType.value = product.type === 'cbt' ? 'cbt' : 'material';
+  editProduct.value = product;
+  showModal.value = true;
 }
 
 const deleteItem = (id: string) => {
@@ -158,57 +166,55 @@ const paginatedProducts = computed(() => {
     </div>
 
     <!-- Management Section -->
-    <div class="grid gap-6 lg:grid-cols-[1fr_320px]">
-      <section class="rounded-[2.5rem] border border-slate-100 bg-white p-8 shadow-[0_20px_60px_rgba(0,0,0,0.03)]">
+    <section class="rounded-[2.5rem] border border-slate-100 bg-white p-8 shadow-[0_20px_60px_rgba(0,0,0,0.03)] w-full max-w-[1800px] mx-auto">
         <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div class="flex flex-col gap-4">
-            <h3 class="text-2xl font-black text-slate-900">Resource Catalog</h3>
-            <div class="flex flex-wrap gap-2">
-                <div class="relative w-full max-w-[240px]">
-                    <input 
-                      v-model="searchQuery"
-                      @input="currentPage = 1"
-                      type="text" 
-                      placeholder="Search items..." 
-                      class="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-2.5 pl-10 pr-4 text-xs font-bold outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/5 transition-all"
-                    />
-                    <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                </div>
-                
-                <select 
-                  v-model="categoryFilter" 
-                  @change="currentPage = 1"
-                  class="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-600 outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/5 transition-all"
-                >
-                  <option value="">All Categories</option>
-                  <option v-for="cat in catalog.categories" :key="cat" :value="cat">{{ cat }}</option>
-                </select>
+          <div class="flex flex-col sm:flex-row sm:items-center sm:gap-8 w-full">
+            <div class="flex flex-col gap-4 w-full">
+              <h3 class="text-2xl font-black text-slate-900">Resource Catalog</h3>
+              <div class="flex gap-2 flex-nowrap items-center">
+                  <div class="relative w-full max-w-[240px]">
+                      <input 
+                        v-model="searchQuery"
+                        @input="currentPage = 1"
+                        type="text" 
+                        placeholder="Search items..." 
+                        class="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-2.5 pl-10 pr-4 text-xs font-bold outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/5 transition-all"
+                      />
+                      <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                  </div>
+                  <select 
+                    v-model="categoryFilter" 
+                    @change="currentPage = 1"
+                    class="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-600 outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/5 transition-all"
+                  >
+                    <option value="">All Categories</option>
+                    <option v-for="cat in catalog.categories" :key="cat" :value="cat">{{ cat }}</option>
+                  </select>
+              </div>
             </div>
-          </div>
-
-          <!-- Dropdown Logic -->
-          <div class="relative group">
-            <button class="flex items-center gap-3 rounded-2xl bg-slate-900 px-6 py-4 text-sm font-black text-white shadow-xl transition hover:bg-primary active:scale-95">
-              <span>+ Add New Resource</span>
-              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7" /></svg>
-            </button>
-            <div class="invisible absolute right-0 top-full z-10 mt-2 w-56 translate-y-2 rounded-2xl border border-slate-100 bg-white p-2 opacity-0 shadow-2xl transition-all group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
-              <button @click="openAddModal('material')" class="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-xs font-black text-slate-700 hover:bg-slate-50">
-                <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">📄</span>
-                Study Material
+            <div class="relative group sm:ml-8">
+              <button class="flex items-center gap-3 whitespace-nowrap rounded-2xl bg-slate-900 px-6 py-4 text-sm font-black text-white shadow-xl transition hover:bg-primary active:scale-95">
+                <span>+ Add New Resource</span>
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7" /></svg>
               </button>
-              <button @click="openAddModal('cbt')" class="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-xs font-black text-slate-700 hover:bg-slate-50">
-                <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-50 text-blue-600">⏳</span>
-                CBT Exam
-              </button>
-              <div class="my-1 border-t border-slate-50" />
-              <button @click="openAddModal('bulk')" class="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-xs font-black text-primary hover:bg-rose-50">
-                <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-rose-50 text-primary">📦</span>
-                Bulk Upload
-              </button>
+              <div class="invisible absolute right-0 top-full z-10 mt-2 w-56 translate-y-2 rounded-2xl border border-slate-100 bg-white p-2 opacity-0 shadow-2xl transition-all group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
+                <button @click="openAddModal('material')" class="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-xs font-black text-slate-700 hover:bg-slate-50">
+                  <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">📄</span>
+                  Study Material
+                </button>
+                <button @click="openAddModal('cbt')" class="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-xs font-black text-slate-700 hover:bg-slate-50">
+                  <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-50 text-blue-600">⏳</span>
+                  CBT Exam
+                </button>
+                <div class="my-1 border-t border-slate-50" />
+                <button @click="openAddModal('bulk')" class="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-xs font-black text-primary hover:bg-rose-50">
+                  <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-rose-50 text-primary">📦</span>
+                  Bulk Upload
+                </button>
+              </div>
             </div>
-          </div>
         </div>
+      </div>
 
         <!-- DataTable -->
         <div class="overflow-x-auto">
@@ -263,7 +269,10 @@ const paginatedProducts = computed(() => {
                 </td>
                 <td class="px-4 py-5 text-sm font-black text-slate-900">₦{{ product.price?.toLocaleString() || '0' }}</td>
                 <td class="px-4 py-5 text-right">
-                  <button @click="deleteItem(product.id)" class="rounded-lg p-2 text-slate-300 hover:bg-rose-50 hover:text-rose-500 transition-colors">
+                  <button @click="openEditModal(product)" class="rounded-lg p-2 text-slate-300 hover:bg-blue-50 hover:text-blue-500 transition-colors mr-2" title="Edit">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 13l6.536-6.536a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-2.828 0L9 13z" /></svg>
+                  </button>
+                  <button @click="deleteItem(product.id)" class="rounded-lg p-2 text-slate-300 hover:bg-rose-50 hover:text-rose-500 transition-colors" title="Delete">
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                   </button>
                 </td>
@@ -305,17 +314,15 @@ const paginatedProducts = computed(() => {
             </div>
           </div>
 
-          <div v-if="filteredAndSortedProducts.length === 0" class="flex flex-col items-center justify-center py-20 text-slate-400">
+           <div v-if="filteredAndSortedProducts.length === 0" class="flex flex-col items-center justify-center py-20 text-slate-400">
              <p class="text-sm font-bold">{{ searchQuery ? 'No results found.' : 'Your catalog is empty.' }}</p>
              <p class="text-[10px] mt-1">{{ searchQuery ? 'Try adjusting your search filters.' : 'Start by adding your first material or CBT exam.' }}</p>
+           </div>
           </div>
-        </div>
+
       </section>
 
-      <AdminQuickLinks />
-    </div>
-
     <!-- Modals -->
-    <ProductModal v-if="showModal" :type="modalType" @close="showModal = false" />
+    <ProductModal v-if="showModal" :type="modalType" :editProduct="editProduct" @close="showModal = false" />
   </section>
-</template>
+</template>

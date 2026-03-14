@@ -281,6 +281,18 @@ export const useCatalogStore = defineStore('catalog', () => {
     products.value.unshift(...stamped)
   }
 
+  const updateProduct = (updated: ProductInput) => {
+    const idx = products.value.findIndex(p => p.id === updated.id)
+    if (idx !== -1) {
+      products.value[idx] = {
+        ...products.value[idx],
+        ...updated,
+        imageUrl: updated.imageUrl ?? getFallbackImage(updated.category),
+        downloadUrl: updated.downloadUrl,
+      }
+    }
+  }
+
   const deleteProduct = (id: string) => {
     products.value = products.value.filter((p) => p.id !== id)
   }
@@ -350,4 +362,4 @@ export const useCatalogStore = defineStore('catalog', () => {
       }
     },
   }
-})
+})

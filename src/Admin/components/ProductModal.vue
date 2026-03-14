@@ -45,6 +45,11 @@ const formData = reactive<ProductInput>({
   questions: []
 })
 
+// Pre-fill formData if editing
+if (props.editProduct) {
+  Object.assign(formData, props.editProduct)
+}
+
 // Question Management
 const addQuestion = () => {
   formData.questions?.push({
@@ -96,9 +101,18 @@ const handleFileUpload = (event: any) => {
   }
 }
 
+const showSuccess = ref(false)
 const handleSubmit = () => {
   if (props.type === 'bulk') {
     catalog.addProductsBulk(bulkItems.value)
+  } else if (props.editProduct) {
+    catalog.updateProduct(formData)
+    showSuccess.value = true
+    setTimeout(() => {
+      showSuccess.value = false
+      emit('close')
+    }, 1500)
+    return
   } else {
     catalog.addProduct({ ...formData })
   }
@@ -480,6 +494,12 @@ const downloadTemplate = () => {
         </section>
       </div>
 
+      <transition name="slide-fade">
+        <div v-if="showSuccess" class="fixed top-6 right-6 z-[100] flex items-center gap-3 rounded-2xl bg-emerald-500 px-6 py-4 text-white shadow-2xl animate-in slide-in-from-right-2 fade-in">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+          <span class="font-black text-sm">Material updated successfully!</span>
+        </div>
+      </transition>
       <div class="mt-10 flex border-t border-slate-100 pt-8 justify-end gap-3">
         <button @click="$emit('close')" class="rounded-2xl border border-slate-200 px-8 py-3 text-sm font-bold text-slate-500">Cancel</button>
         <button 
@@ -488,7 +508,7 @@ const downloadTemplate = () => {
           class="rounded-2xl px-8 py-3 text-sm font-black text-white shadow-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
           :class="isFormValid ? 'bg-secondary shadow-rose-200' : 'bg-slate-300'"
         >
-          {{ type === 'bulk' ? 'Execute Bulk Upload' : 'Upload Item' }}
+          {{ type === 'bulk' ? 'Execute Bulk Upload' : (editProduct ? 'Update' : 'Upload Item') }}
         </button>
       </div>
     </div>

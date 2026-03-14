@@ -165,6 +165,22 @@ onBeforeUnmount(() => {
                 >
                   Dashboard
                 </RouterLink>
+                <RouterLink
+                  v-if="adminSession"
+                  to="/admin/auth/login"
+                  class="flex w-full items-center justify-start rounded-xl px-3 py-2 text-sm font-bold text-slate-700 transition hover:bg-primary/10 hover:text-primary"
+                  @click="closeProfileMenu"
+                >
+                  Admin login
+                </RouterLink>
+                <RouterLink
+                  v-if="adminSession"
+                  to="/admin/auth/reset-password"
+                  class="flex w-full items-center justify-start rounded-xl px-3 py-2 text-sm font-bold text-slate-700 transition hover:bg-primary/10 hover:text-primary"
+                  @click="closeProfileMenu"
+                >
+                  Reset password
+                </RouterLink>
                 <button
                   type="button"
                   class="flex w-full items-center justify-start rounded-xl px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50"
