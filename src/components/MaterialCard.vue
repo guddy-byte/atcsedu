@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
+import { useCatalogStore } from '../stores/catalog'
 import type { Product } from '../stores/catalog'
 import logoImage from '../images/logo.png'
 
@@ -11,6 +12,9 @@ const props = defineProps<{
 const emit = defineEmits<{
   pay: [productId: string]
 }>()
+
+const catalog = useCatalogStore()
+const viewerVisible = ref(false)
 
 const DESCRIPTION_WORD_LIMIT = 12
 
@@ -42,6 +46,9 @@ const downloadUrl = computed(() => props.product.downloadUrl ?? props.product.im
 
 const isPdfAsset = computed(() => /\.pdf(?:$|[?#])/i.test(downloadUrl.value))
 
+const isPurchased = computed(() => catalog.purchasedIds.includes(props.product.id))
+const isUnlocked = computed(() => props.product.accessType === 'free' || isPurchased.value)
+
 const downloadFileName = computed(() => {
   const sanitizedTitle = props.product.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')
   return isPdfAsset.value ? `${sanitizedTitle}.pdf` : sanitizedTitle
@@ -71,6 +78,20 @@ const triggerFreeDownload = () => {
   document.body.appendChild(link)
   link.click()
   link.remove()
+}
+
+const openPaidMaterial = () => {
+  if (!downloadUrl.value) {
+    return
+  }
+
+  if (isPdfAsset.value) {
+    viewerVisible.value = true
+    return
+  }
+
+  // Other file types can be opened in a new tab; avoid direct download for paid content
+  window.open(downloadUrl.value, '_blank', 'noopener')
 }
 </script>
 
@@ -127,13 +148,43 @@ const triggerFreeDownload = () => {
         </span>
 
         <button
-          v-if="product.accessType !== 'free'"
+          v-if="product.accessType !== 'free' && !isUnlocked"
           class="inline-flex min-w-[88px] items-center justify-center rounded-full bg-primary px-5 py-2 text-[12px] font-semibold text-white transition hover:bg-secondary"
           @click="emit('pay', product.id)"
         >
           Pay
         </button>
+
+        <button
+          v-if="product.accessType !== 'free' && isUnlocked"
+          class="inline-flex min-w-[88px] items-center justify-center rounded-full bg-green-600 px-5 py-2 text-[12px] font-semibold text-white transition hover:bg-emerald-500"
+          @click="openPaidMaterial"
+        >
+          View now
+        </button>
       </div>
     </div>
   </article>
+
+  <div
+    v-if="viewerVisible"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4"
+  >
+    <div class="relative w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <button
+        type="button"
+        class="absolute right-3 top-3 z-10 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200"
+        @click="viewerVisible = false"
+      >
+        Close
+      </button>
+      <iframe
+        v-if="isPdfAsset"
+        :src="downloadUrl"
+        class="h-[80vh] w-full border-0"
+        sandbox="allow-scripts allow-same-origin"
+      />
+      <div v-else class="p-6 text-sm text-slate-700">Cannot preview this format in-platform. <a :href="downloadUrl" target="_blank" rel="noreferrer" class="font-bold text-primary">Open in new tab</a>.</div>
+    </div>
+  </div>
 </template>

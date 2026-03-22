@@ -6,6 +6,15 @@ use Symfony\Component\Console\Input\ArgvInput;
 
 define('LARAVEL_START', microtime(true));
 
+if (PHP_OS_FAMILY === 'Windows' && ($_SERVER['argv'][1] ?? null) === 'serve' && ! in_array('--no-reload', $_SERVER['argv'], true)) {
+    // Laravel's auto-reload mode strips env vars that Herd/PHP needs on Windows.
+    $_SERVER['argv'][] = '--no-reload';
+    $_SERVER['argc'] = count($_SERVER['argv']);
+
+    $argv = $_SERVER['argv'];
+    $argc = $_SERVER['argc'];
+}
+
 // Register the Composer autoloader...
 require __DIR__.'/vendor/autoload.php';
 

@@ -23,10 +23,12 @@ const props = withDefaults(defineProps<{
 
 const route = useRoute()
 const router = useRouter()
+const fullName = ref('')
 const email = ref('')
 const secret = ref('')
 const errorMessage = ref('')
 const showPassword = ref(false)
+const isSubmitting = ref(false)
 
 const redirectTarget = computed(() =>
   typeof route.query.redirect === 'string' ? route.query.redirect : undefined,
@@ -71,50 +73,58 @@ const fillStudentDemoCredentials = () => {
   errorMessage.value = ''
 }
 
-const submitPrimaryAction = () => {
+const submitPrimaryAction = async () => {
   const normalizedEmail = email.value.trim().toLowerCase()
   const normalizedSecret = secret.value.trim()
   errorMessage.value = ''
+  isSubmitting.value = true
 
-  if (props.mode === 'signup') {
-    if (!normalizedEmail) {
-      errorMessage.value = 'Enter an email address to create your student account.'
+  try {
+    if (props.mode === 'signup') {
+      if (!fullName.value.trim()) {
+        errorMessage.value = 'Enter your full name to create your student account.'
+        return
+      }
+
+      if (!normalizedEmail) {
+        errorMessage.value = 'Enter an email address to create your student account.'
+        return
+      }
+
+      if (!normalizedSecret || normalizedSecret.length < 8) {
+        errorMessage.value = 'Create a password with at least 8 characters.'
+        return
+      }
+
+      await registerStudent(fullName.value.trim(), normalizedEmail, normalizedSecret)
+      router.push(primaryRoute.value)
       return
     }
 
-    if (!normalizedSecret || normalizedSecret.length < 6) {
-      errorMessage.value = 'Create a password with at least 6 characters.'
+    if (props.mode === 'login') {
+      if (!normalizedEmail) {
+        errorMessage.value = 'Enter your registered email address to continue.'
+        return
+      }
+
+      if (!normalizedSecret) {
+        errorMessage.value = 'Enter your password to continue.'
+        return
+      }
+
+      await loginStudent(normalizedEmail, normalizedSecret)
+      router.push(redirectTarget.value ?? props.primaryTo)
       return
     }
 
-    registerStudent(normalizedEmail, normalizedSecret)
     router.push(primaryRoute.value)
-    return
+  } catch (error) {
+    errorMessage.value = error instanceof Error
+      ? error.message
+      : 'We could not complete your request right now.'
+  } finally {
+    isSubmitting.value = false
   }
-
-  if (props.mode === 'login') {
-    if (!normalizedEmail) {
-      errorMessage.value = 'Enter your registered email address to continue.'
-      return
-    }
-
-    if (!normalizedSecret) {
-      errorMessage.value = 'Enter your password to continue.'
-      return
-    }
-
-    const loggedIn = loginStudent(normalizedEmail, normalizedSecret)
-
-    if (!loggedIn) {
-      errorMessage.value = 'Invalid email/password. Use your signup details or the demo credentials.'
-      return
-    }
-
-    router.push(redirectTarget.value ?? props.primaryTo)
-    return
-  }
-
-  router.push(primaryRoute.value)
 }
 </script>
 
@@ -136,7 +146,7 @@ const submitPrimaryAction = () => {
       </div>
 
       <div v-if="mode === 'login'" class="mt-6 rounded-xl border border-white/20 bg-white/12 px-4 py-3 text-sm">
-        <p class="font-semibold">Demo login</p>
+        <p class="font-semibold">Seeded test login</p>
         <p class="mt-1 break-all text-rose-100">{{ DEMO_STUDENT_CREDENTIALS.email }}</p>
         <p class="text-rose-100">{{ DEMO_STUDENT_CREDENTIALS.password }}</p>
         <button
@@ -151,9 +161,19 @@ const submitPrimaryAction = () => {
 
     <form class="grid content-start gap-4 rounded-[1.6rem] border border-rose-100 bg-rose-50/55 p-5 sm:p-6" @submit.prevent="submitPrimaryAction">
       <div>
-        <h3 class="text-xl font-extrabold tracking-tight text-slate-900">Welcome 👋</h3>
+        <h3 class="text-xl font-extrabold tracking-tight text-slate-900">Welcome</h3>
         <p class="mt-1 text-sm text-slate-600">Use your details below to continue.</p>
       </div>
+
+      <label v-if="mode === 'signup'" class="grid gap-2">
+        <span class="text-sm font-semibold text-slate-700">Full name</span>
+        <input
+          v-model="fullName"
+          type="text"
+          placeholder="Enter your full name"
+          class="rounded-[0.95rem] border border-rose-100 bg-white px-4 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-primary/45 focus:ring-2 focus:ring-primary/10"
+        />
+      </label>
 
       <label class="grid gap-2">
         <span class="text-sm font-semibold text-slate-700">Email address</span>
@@ -190,9 +210,10 @@ const submitPrimaryAction = () => {
 
       <button
         type="submit"
-        class="inline-flex items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_24px_rgba(237,69,97,0.24)]"
+        :disabled="isSubmitting"
+        class="inline-flex items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white shadow-[0_14px_24px_rgba(237,69,97,0.24)] disabled:opacity-70"
       >
-        {{ primaryLabel }}
+        {{ isSubmitting ? 'Please wait...' : primaryLabel }}
       </button>
 
       <RouterLink

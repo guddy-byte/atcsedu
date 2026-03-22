@@ -5,6 +5,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import logoImage from '../images/logo.png'
 import { getStudentSession, logoutStudent, resolveProtectedStudentRoute } from '../utils/studentAuth'
 import { getAdminSession, logoutAdmin } from '../utils/adminAuth'
+import { authSessionRef } from '../utils/authSession'
 
 const route = useRoute()
 const router = useRouter()
@@ -20,19 +21,38 @@ const menuItems = [
 ]
 
 const studentSession = computed(() => {
-  const _ = route.path
-  return getStudentSession()
+  const session = authSessionRef.value
+
+  if (!session || session.user.role !== 'student') {
+    return null
+  }
+
+  return {
+    name: session.user.name,
+    email: session.user.email,
+    authenticatedAt: session.authenticatedAt,
+    source: 'api',
+  }
 })
 
 const adminSession = computed(() => {
-  const _ = route.path
-  return getAdminSession()
+  const session = authSessionRef.value
+
+  if (!session || session.user.role !== 'admin') {
+    return null
+  }
+
+  return {
+    name: session.user.name,
+    email: session.user.email,
+    authenticatedAt: session.authenticatedAt,
+  }
 })
 
-const isAuthenticated = computed(() => !!studentSession.value || !!adminSession.value)
+const isAuthenticated = computed(() => !!authSessionRef.value)
 const isStudentDashboard = computed(() => route.path.startsWith('/exam-training') && !!studentSession.value)
 const isAdminDashboard = computed(() => route.path.startsWith('/admin') && !!adminSession.value)
-const isMainDashboard = computed(() => isStudentDashboard.value || isAdminDashboard.value)
+const isMainDashboard = computed(() => isAdminDashboard.value)
 
 const isActive = computed(() => (path: string) => {
   if (route.path === path) {
@@ -65,9 +85,9 @@ const toggleProfileMenu = () => {
   profileMenuOpen.value = !profileMenuOpen.value
 }
 
-const logoutAndGoHome = () => {
-  if (studentSession.value) logoutStudent()
-  if (adminSession.value) logoutAdmin()
+const logoutAndGoHome = async () => {
+  if (studentSession.value) await logoutStudent()
+  if (adminSession.value) await logoutAdmin()
   closeProfileMenu()
   router.push('/')
 }

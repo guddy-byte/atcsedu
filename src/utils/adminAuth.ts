@@ -1,4 +1,7 @@
+import { getAuthSession, loginUser, logoutUser } from './authSession'
+
 export interface AdminSessionRecord {
+  name: string
   email: string
   authenticatedAt: string
 }
@@ -8,64 +11,27 @@ export const DEMO_ADMIN_CREDENTIALS = {
   password: 'ATCSAdmin2026!',
 } as const
 
-const ADMIN_SESSION_KEY = 'atcsedu-admin-session'
+export const getAdminSession = (): AdminSessionRecord | null => {
+  const session = getAuthSession()
 
-const canUseStorage = typeof window !== 'undefined'
-
-const readJson = <T>(key: string, fallback: T): T => {
-  if (!canUseStorage) {
-    return fallback
+  if (!session || session.user.role !== 'admin') {
+    return null
   }
 
-  const rawValue = window.localStorage.getItem(key)
-
-  if (!rawValue) {
-    return fallback
-  }
-
-  try {
-    return JSON.parse(rawValue) as T
-  } catch {
-    return fallback
+  return {
+    name: session.user.name,
+    email: session.user.email,
+    authenticatedAt: session.authenticatedAt,
   }
 }
-
-const writeJson = (key: string, value: unknown) => {
-  if (!canUseStorage) {
-    return
-  }
-
-  window.localStorage.setItem(key, JSON.stringify(value))
-}
-
-export const getAdminSession = (): AdminSessionRecord | null =>
-  readJson<AdminSessionRecord | null>(ADMIN_SESSION_KEY, null)
 
 export const isAdminAuthenticated = () => Boolean(getAdminSession())
 
-export const loginAdmin = (email: string, password: string) => {
-  const normalizedEmail = email.trim().toLowerCase()
-  const normalizedPassword = password.trim()
-
-  if (
-    normalizedEmail !== DEMO_ADMIN_CREDENTIALS.email ||
-    normalizedPassword !== DEMO_ADMIN_CREDENTIALS.password
-  ) {
-    return false
-  }
-
-  writeJson(ADMIN_SESSION_KEY, {
-    email: normalizedEmail,
-    authenticatedAt: new Date().toISOString(),
-  } satisfies AdminSessionRecord)
-
+export const loginAdmin = async (email: string, password: string) => {
+  await loginUser({ email, password }, 'admin')
   return true
 }
 
-export const logoutAdmin = () => {
-  if (!canUseStorage) {
-    return
-  }
-
-  window.localStorage.removeItem(ADMIN_SESSION_KEY)
+export const logoutAdmin = async () => {
+  await logoutUser()
 }

@@ -1,31 +1,7 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
 
-import AvatarGroup, { type AvatarGroupItem } from './AvatarGroup.vue'
 import heroImage from '../images/hero.png'
-
-const trustedUsers = [
-  {
-    src: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=120&q=80',
-    fallback: 'AM',
-    tooltip: 'Amaka',
-  },
-  {
-    src: 'https://images.unsplash.com/photo-1507591064344-4c6ce005b128?auto=format&fit=crop&w=120&q=80',
-    fallback: 'TU',
-    tooltip: 'Tunde',
-  },
-  {
-    src: 'https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&w=120&q=80',
-    fallback: 'AI',
-    tooltip: 'Aisha',
-  },
-  {
-    src: 'https://images.unsplash.com/photo-1509099836639-18ba1795216d?auto=format&fit=crop&w=120&q=80',
-    fallback: 'DA',
-    tooltip: 'David',
-  },
-] satisfies AvatarGroupItem[]
 </script>
 
 <template>
@@ -37,51 +13,51 @@ const trustedUsers = [
       <div class="grid gap-6 lg:gap-7">
         <div class="grid max-w-2xl gap-4">
           <p class="w-fit rounded-full bg-white/20 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]">
-            Learning made simple
+            Fresh platform
           </p>
           <h2 class="text-[2.05rem] leading-[1.05] font-extrabold tracking-[-0.04em] sm:text-[2.45rem] lg:text-[2.8rem]">
-            Find the right exam materials in seconds.
+            Start from a clean catalog and publish only real content.
           </h2>
           <p class="text-sm leading-7 text-rose-50/95 sm:text-base">
-            Inspired by top learning platforms, this homepage is structured so students can quickly
-            spot free resources, premium bundles, and focused exam support as soon as they scroll.
+            The landing page is now set up as a fresh workspace. Add your actual materials, pricing,
+            and exam training items from the admin area whenever you are ready to go live.
           </p>
         </div>
 
         <div class="flex flex-wrap items-center gap-3">
           <RouterLink
-            v-if="false"
-            to="/materials/free"
+            to="/admin/auth/login"
             class="inline-flex items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-bold text-rose-600 transition hover:-translate-y-0.5"
           >
-            Start with free materials
+            Open admin dashboard
           </RouterLink>
           <RouterLink
-            to="/materials/paid"
+            to="/materials/free"
             class="inline-flex items-center justify-center rounded-full border border-white/45 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/20"
           >
-            Explore premium options
+            View live catalog
           </RouterLink>
         </div>
 
         <div class="grid gap-3 sm:grid-cols-3">
           <article class="rounded-2xl border border-white/20 bg-white/10 px-4 py-3 backdrop-blur-sm">
             <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-rose-100">Step 1</p>
-            <p class="mt-1 text-sm font-semibold">Pick your track</p>
+            <p class="mt-1 text-sm font-semibold">Create a category</p>
           </article>
           <article class="rounded-2xl border border-white/20 bg-white/10 px-4 py-3 backdrop-blur-sm">
             <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-rose-100">Step 2</p>
-            <p class="mt-1 text-sm font-semibold">Choose format</p>
+            <p class="mt-1 text-sm font-semibold">Publish a resource</p>
           </article>
           <article class="rounded-2xl border border-white/20 bg-white/10 px-4 py-3 backdrop-blur-sm">
             <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-rose-100">Step 3</p>
-            <p class="mt-1 text-sm font-semibold">Start learning</p>
+            <p class="mt-1 text-sm font-semibold">Open it to learners</p>
           </article>
         </div>
 
         <div class="flex flex-wrap items-center gap-4 text-rose-50">
-          <AvatarGroup :avatars="trustedUsers" />
-          <p class="text-sm font-medium sm:text-base">Trusted by 100+ active learners</p>
+          <div class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold backdrop-blur-sm">
+            No demo materials or mock exam listings are being shown.
+          </div>
         </div>
       </div>
 

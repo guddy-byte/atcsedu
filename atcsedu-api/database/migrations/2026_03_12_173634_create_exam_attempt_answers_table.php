@@ -13,6 +13,13 @@ return new class extends Migration
     {
         Schema::create('exam_attempt_answers', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('exam_attempt_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('question_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('selected_option_id')->nullable()->constrained('question_options')->nullOnDelete();
+            $table->longText('theory_answer')->nullable();
+            $table->boolean('is_correct')->nullable();
+            $table->unsignedInteger('awarded_points')->default(0);
+            $table->text('review_comment')->nullable();
             $table->timestamps();
         });
     }

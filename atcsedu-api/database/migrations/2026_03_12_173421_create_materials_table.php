@@ -13,6 +13,16 @@ return new class extends Migration
     {
         Schema::create('materials', function (Blueprint $table) {
             $table->id();
+            $table->string('title');
+            $table->string('category');
+            $table->enum('access_type', ['free', 'paid']);
+            $table->decimal('price', 12, 2)->default(0);
+            $table->string('format')->nullable();
+            $table->text('description')->nullable();
+            $table->string('cover_url')->nullable();
+            $table->string('download_url')->nullable();
+            $table->boolean('is_published')->default(true);
+            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
         });
     }

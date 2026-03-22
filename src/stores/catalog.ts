@@ -1,12 +1,25 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 
+import { apiRequest } from '../lib/api'
+
+export interface QuestionOptionItem {
+  id: string
+  label?: string
+  text: string
+  isCorrect?: boolean
+  position?: number
+}
+
 export interface QuestionItem {
   id: string
   type: 'objective' | 'theory'
   prompt: string
   options?: string[]
+  optionRecords?: QuestionOptionItem[]
   correctOption?: string
+  points?: number
+  position?: number
 }
 
 export interface Product {
@@ -20,11 +33,12 @@ export interface Product {
   description: string
   accessType: 'free' | 'paid'
   imageUrl: string
-  downloadUrl?: string
-  // CBT specific
+  downloadUrl?: string | null
   questions?: QuestionItem[]
   duration?: string
   limitAttempts?: number
+  slug?: string
+  isPublished?: boolean
 }
 
 export interface CartItem {
@@ -38,6 +52,8 @@ export interface CartProduct extends Product {
 }
 
 export interface ProductInput {
+  id?: string
+  slug?: string
   type: 'material' | 'cbt'
   title: string
   category: string
@@ -51,6 +67,88 @@ export interface ProductInput {
   questions?: QuestionItem[]
   duration?: string
   limitAttempts?: number
+  isPublished?: boolean
+}
+
+interface PaginatedResponse<T> {
+  status: string
+  data: {
+    items: T[]
+    meta?: {
+      current_page: number
+      per_page: number
+      total: number
+      last_page: number
+    }
+  }
+}
+
+interface MaterialApi {
+  id: number
+  title: string
+  category: string
+  access_type: 'free' | 'paid'
+  price: number
+  format: string | null
+  description: string | null
+  cover_url: string | null
+  download_url: string | null
+  is_published?: boolean
+}
+
+interface ExamSummaryApi {
+  id: number
+  title: string
+  slug: string
+  category: string | null
+  access_type: 'free' | 'paid'
+  price: number
+  duration_minutes: number
+  attempt_limit?: number
+  description: string | null
+  questions_count?: number
+  is_published?: boolean
+}
+
+interface ExamDetailApi extends ExamSummaryApi {
+  questions: Array<{
+    id: number
+    type: 'objective' | 'theory'
+    prompt: string
+    points: number
+    position: number
+    options: Array<{
+      id: number
+      label?: string | null
+      option_text: string
+      is_correct?: boolean
+      position?: number
+    }>
+  }>
+}
+
+interface MaterialDetailResponse {
+  status: string
+  data: {
+    material: MaterialApi
+  }
+}
+
+interface ExamDetailResponse {
+  status: string
+  data: {
+    exam: ExamDetailApi
+  }
+}
+
+interface PaymentInitializeResponse {
+  status: string
+  data: {
+    reference: string
+    authorization_url: string | null
+    access_code: string | null
+    is_simulated?: boolean
+  }
 }
 
 const fallbackImageByCategory: Record<string, string> = {
@@ -66,99 +164,14 @@ const fallbackImageByCategory: Record<string, string> = {
     'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1200&q=80',
   General:
     'https://images.unsplash.com/photo-1513258496099-48168024aec0?auto=format&fit=crop&w=1200&q=80',
+  'Core subject':
+    'https://images.unsplash.com/photo-1513258496099-48168024aec0?auto=format&fit=crop&w=1200&q=80',
+  'Premium mock':
+    'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=1200&q=80',
 }
 
 const getFallbackImage = (category: string) =>
   fallbackImageByCategory[category] ?? fallbackImageByCategory.General
-
-const sampleFreeMaterialPdf = '/materials/atcsedu-free-material.pdf'
-
-const catalogSeed: Product[] = [
-  {
-    id: 'english-language-cbt-demo',
-    type: 'cbt',
-    title: 'English Language CBT',
-    category: 'Core subject',
-    format: 'CBT Exam',
-    price: 0,
-    stock: 999,
-    description: 'Practice comprehension, grammar, and objective questions in a timed CBT format.',
-    accessType: 'free',
-    imageUrl: getFallbackImage('Languages'),
-    duration: '45 mins',
-    limitAttempts: 0,
-    questions: [
-      {
-        id: 'eng-1',
-        type: 'objective',
-        prompt: 'Choose the correctly punctuated sentence.',
-        options: ['lets eat grandma', "Let's eat, Grandma.", 'Lets, eat grandma.'],
-        correctOption: "Let's eat, Grandma.",
-      },
-      {
-        id: 'eng-2',
-        type: 'objective',
-        prompt: 'The antonym of "scarce" is:',
-        options: ['Rare', 'Plenty', 'Little'],
-        correctOption: 'Plenty',
-      },
-      {
-        id: 'eng-3',
-        type: 'theory',
-        prompt: 'In 2-3 sentences, explain why reading comprehension matters in exam preparation.',
-      },
-    ],
-  },
-  {
-    id: 'waec-complete-mock-demo',
-    type: 'cbt',
-    title: 'WAEC Complete Mock CBT',
-    category: 'Premium mock',
-    format: 'CBT Exam',
-    price: 7500,
-    stock: 100,
-    description: 'Multi-section simulation exam with full scoring and progress feedback.',
-    accessType: 'paid',
-    imageUrl: getFallbackImage('Revision'),
-    duration: '1 hr 20 mins',
-    limitAttempts: 2,
-    questions: [
-      {
-        id: 'waec-1',
-        type: 'objective',
-        prompt: 'Nigeria gained independence in which year?',
-        options: ['1957', '1960', '1963'],
-        correctOption: '1960',
-      },
-    ],
-  },
-  {
-    id: 'english-essay-starter',
-    type: 'material',
-    title: 'English Essay Starter',
-    category: 'Languages',
-    format: 'PDF Guide',
-    price: 0,
-    stock: 999,
-    description: 'A concise writing guide with sample essay structures for senior secondary students.',
-    accessType: 'free',
-    imageUrl: getFallbackImage('Languages'),
-    downloadUrl: sampleFreeMaterialPdf,
-  },
-  {
-    id: 'waec-math-accelerator',
-    type: 'material',
-    title: 'WAEC Math Accelerator',
-    category: 'Mathematics',
-    format: 'PDF Guide',
-    price: 4500,
-    stock: 40,
-    description: 'Focused lesson notes, worked examples, and timed revision drills for exam candidates.',
-    accessType: 'paid',
-    imageUrl: getFallbackImage('Mathematics'),
-    downloadUrl: sampleFreeMaterialPdf,
-  },
-]
 
 const canUseStorage = typeof window !== 'undefined'
 
@@ -188,22 +201,220 @@ const persistStorage = <T>(key: string, value: T) => {
   window.localStorage.setItem(key, JSON.stringify(value))
 }
 
-const createProductId = (title: string, suffix = '') => {
-  const base = title.toLowerCase().replace(/[^a-z0-9]+/g, '-')
-  return `${base}-${Date.now()}${suffix}`
+const toDurationLabel = (minutes: number) => {
+  if (minutes >= 60) {
+    const hours = Math.floor(minutes / 60)
+    const remainingMinutes = minutes % 60
+
+    if (remainingMinutes === 0) {
+      return `${hours} hr`
+    }
+
+    return `${hours} hr ${remainingMinutes} mins`
+  }
+
+  return `${minutes} mins`
+}
+
+const toDurationMinutes = (duration?: string) => {
+  if (!duration) {
+    return 45
+  }
+
+  const parts = duration.toLowerCase().split(' ')
+  let totalMinutes = 0
+
+  for (let index = 0; index < parts.length; index += 1) {
+    const value = Number.parseInt(parts[index], 10)
+
+    if (Number.isNaN(value)) {
+      continue
+    }
+
+    if (parts[index + 1]?.startsWith('hr')) {
+      totalMinutes += value * 60
+    }
+
+    if (parts[index + 1]?.startsWith('min')) {
+      totalMinutes += value
+    }
+  }
+
+  return totalMinutes || 45
+}
+
+const mapMaterial = (material: MaterialApi): Product => ({
+  id: String(material.id),
+  type: 'material',
+  title: material.title,
+  category: material.category,
+  format: material.format || 'PDF Guide',
+  price: Number(material.price || 0),
+  stock: 999,
+  description: material.description || '',
+  accessType: material.access_type,
+  imageUrl: material.cover_url || getFallbackImage(material.category),
+  downloadUrl: material.download_url,
+  isPublished: material.is_published ?? true,
+})
+
+const mapExamQuestion = (question: ExamDetailApi['questions'][number]): QuestionItem => ({
+  id: String(question.id),
+  type: question.type,
+  prompt: question.prompt,
+  points: question.points,
+  position: question.position,
+  options: question.options.map((option) => option.option_text),
+  optionRecords: question.options.map((option) => ({
+    id: String(option.id),
+    label: option.label ?? undefined,
+    text: option.option_text,
+    isCorrect: option.is_correct,
+    position: option.position,
+  })),
+  correctOption: question.options.find((option) => option.is_correct)?.option_text,
+})
+
+const mapExam = (exam: ExamSummaryApi): Product => ({
+  id: String(exam.id),
+  type: 'cbt',
+  title: exam.title,
+  category: exam.category || 'General',
+  format: 'CBT Exam',
+  price: Number(exam.price || 0),
+  stock: 999,
+  description: exam.description || '',
+  accessType: exam.access_type,
+  imageUrl: getFallbackImage(exam.category || 'General'),
+  duration: toDurationLabel(exam.duration_minutes),
+  limitAttempts: exam.attempt_limit ?? 0,
+  slug: exam.slug,
+  isPublished: exam.is_published ?? true,
+})
+
+const mapExamDetail = (exam: ExamDetailApi): Product => ({
+  ...mapExam(exam),
+  questions: exam.questions.map(mapExamQuestion),
+})
+
+const uniqueCategories = (products: Product[], existing: string[]) => {
+  const set = new Set<string>(existing)
+
+  products.forEach((product) => {
+    if (product.category) {
+      set.add(product.category)
+    }
+  })
+
+  return Array.from(set)
 }
 
 export const useCatalogStore = defineStore('catalog', () => {
-  const products = ref<Product[]>(readStorage('atcsedu-products', catalogSeed))
+  const products = ref<Product[]>([])
   const cart = ref<CartItem[]>(readStorage('atcsedu-cart', []))
   const purchasedIds = ref<string[]>(readStorage('atcsedu-purchased', []))
-  const categories = ref<string[]>(readStorage('atcsedu-categories', ['Mathematics', 'Science', 'Languages', 'Revision', 'Core subject', 'Premium mock']))
+  const categories = ref<string[]>([])
+  const isLoading = ref(false)
+  const hasLoaded = ref(false)
+  const loadError = ref('')
+
+  const syncCategories = () => {
+    categories.value = uniqueCategories(products.value, [])
+  }
+
+  const upsertProduct = (product: Product) => {
+    const existingIndex = products.value.findIndex((entry) => entry.id === product.id && entry.type === product.type)
+
+    if (existingIndex === -1) {
+      products.value.unshift(product)
+      syncCategories()
+      return
+    }
+
+    products.value[existingIndex] = {
+      ...products.value[existingIndex],
+      ...product,
+    }
+    syncCategories()
+  }
+
+  const replaceProducts = (nextProducts: Product[]) => {
+    products.value = nextProducts
+    cart.value = cart.value.filter((item) => nextProducts.some((product) => product.id === item.productId))
+    purchasedIds.value = purchasedIds.value.filter((id) => nextProducts.some((product) => product.id === id))
+    syncCategories()
+  }
+
+  const initialize = async (force = false) => {
+    if (hasLoaded.value && !force) {
+      return
+    }
+
+    isLoading.value = true
+    loadError.value = ''
+
+    try {
+      const [materialsResponse, examsResponse] = await Promise.all([
+        apiRequest<PaginatedResponse<MaterialApi>>('/materials?per_page=100'),
+        apiRequest<PaginatedResponse<ExamSummaryApi>>('/exams?per_page=100'),
+      ])
+
+      replaceProducts([
+        ...examsResponse.data.items.map(mapExam),
+        ...materialsResponse.data.items.map(mapMaterial),
+      ])
+      hasLoaded.value = true
+    } catch (error) {
+      loadError.value = error instanceof Error ? error.message : 'Unable to load catalog data right now.'
+      throw error
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  const fetchExamDetails = async (productId: string) => {
+    const response = await apiRequest<ExamDetailResponse>(`/exams/${productId}`)
+    const product = mapExamDetail(response.data.exam)
+    upsertProduct(product)
+    return product
+  }
+
+  const fetchAdminExam = async (productId: string) => {
+    const response = await apiRequest<ExamDetailResponse>(`/admin/exams/${productId}`)
+    const product = mapExamDetail(response.data.exam)
+    upsertProduct(product)
+    return product
+  }
+
+  const fetchMaterialDetails = async (productId: string) => {
+    const response = await apiRequest<MaterialDetailResponse>(`/materials/${productId}`)
+    const product = mapMaterial(response.data.material)
+    upsertProduct(product)
+    return product
+  }
+
+  const applyExamReview = (productId: string, review: Array<{
+    question_id: number
+    correct_option_text?: string | null
+  }>) => {
+    const product = products.value.find((entry) => entry.id === productId && entry.type === 'cbt')
+
+    if (!product?.questions) {
+      return
+    }
+
+    const reviewMap = new Map(review.map((item) => [String(item.question_id), item.correct_option_text || undefined]))
+
+    product.questions = product.questions.map((question) => ({
+      ...question,
+      correctOption: reviewMap.get(question.id) ?? question.correctOption,
+    }))
+  }
 
   const revenueEstimate = computed(() =>
-    // Simulated: count all items in purchasedIds that are paid
     purchasedIds.value.reduce((total, id) => {
-      const p = products.value.find((prod) => prod.id === id)
-      return total + (p?.price || 0)
+      const product = products.value.find((entry) => entry.id === id)
+      return total + (product?.price || 0)
     }, 0),
   )
 
@@ -257,59 +468,168 @@ export const useCatalogStore = defineStore('catalog', () => {
     }
   }
 
-  const addProduct = (product: ProductInput) => {
-    const accessType = product.accessType ?? (product.price > 0 ? 'paid' : 'free')
-
-    products.value.unshift({
-      ...product,
-      id: createProductId(product.title),
-      accessType,
-      imageUrl: product.imageUrl ?? getFallbackImage(product.category),
-      downloadUrl: product.downloadUrl,
-    })
-  }
-
-  const addProductsBulk = (newProducts: ProductInput[]) => {
-    const stamped = newProducts.map((product, index) => ({
-      ...product,
-      id: createProductId(product.title, `-${index}`),
-      accessType: product.accessType ?? (product.price > 0 ? 'paid' : 'free'),
-      imageUrl: product.imageUrl ?? getFallbackImage(product.category),
-      downloadUrl: product.downloadUrl,
-    }))
-
-    products.value.unshift(...stamped)
-  }
-
-  const updateProduct = (updated: ProductInput) => {
-    const idx = products.value.findIndex(p => p.id === updated.id)
-    if (idx !== -1) {
-      products.value[idx] = {
-        ...products.value[idx],
-        ...updated,
-        imageUrl: updated.imageUrl ?? getFallbackImage(updated.category),
-        downloadUrl: updated.downloadUrl,
-      }
-    }
-  }
-
-  const deleteProduct = (id: string) => {
-    products.value = products.value.filter((p) => p.id !== id)
-  }
-
   const buyProduct = (id: string) => {
     if (!purchasedIds.value.includes(id)) {
       purchasedIds.value.push(id)
     }
   }
 
-  watch(
-    products,
-    (value) => {
-      persistStorage('atcsedu-products', value)
-    },
-    { deep: true },
-  )
+  const purchaseProduct = async (productId: string) => {
+    const product = products.value.find((entry) => entry.id === productId)
+
+    if (!product) {
+      throw new Error('The selected product could not be found.')
+    }
+
+    const response = await apiRequest<PaymentInitializeResponse>('/payments/paystack/initialize', {
+      method: 'POST',
+      body: {
+        item_type: product.type === 'cbt' ? 'exam' : 'material',
+        item_id: Number(product.id),
+      },
+    })
+
+    if (response.data.is_simulated) {
+      await apiRequest(`/payments/${response.data.reference}/verify?simulate=1`)
+      buyProduct(productId)
+      return response.data
+    }
+
+    if (response.data.authorization_url && typeof window !== 'undefined') {
+      window.location.href = response.data.authorization_url
+    }
+
+    return response.data
+  }
+
+  const toMaterialPayload = (product: ProductInput) => ({
+    title: product.title,
+    category: product.category,
+    access_type: product.accessType ?? (product.price > 0 ? 'paid' : 'free'),
+    price: product.price,
+    format: product.format,
+    description: product.description,
+    cover_url: product.imageUrl,
+    download_url: product.downloadUrl,
+    is_published: product.isPublished ?? true,
+  })
+
+  const toExamPayload = (product: ProductInput) => ({
+    title: product.title,
+    slug: product.slug,
+    category: product.category,
+    access_type: product.accessType ?? (product.price > 0 ? 'paid' : 'free'),
+    price: product.price,
+    duration_minutes: toDurationMinutes(product.duration),
+    attempt_limit: product.limitAttempts ?? 0,
+    description: product.description,
+    is_published: product.isPublished ?? true,
+  })
+
+  const toQuestionPayload = (question: QuestionItem, index: number) => ({
+    type: question.type,
+    prompt: question.prompt,
+    points: question.points ?? (question.type === 'theory' ? 5 : 1),
+    position: question.position ?? index + 1,
+    options: question.type === 'objective'
+      ? (question.options ?? []).map((option, optionIndex) => ({
+          label: String.fromCharCode(65 + optionIndex),
+          option_text: option,
+          is_correct: question.correctOption === option,
+          position: optionIndex + 1,
+        }))
+      : [],
+  })
+
+  const addProduct = async (product: ProductInput) => {
+    if (product.type === 'material') {
+      const response = await apiRequest<{ status: string; data: { material: MaterialApi } }>('/admin/materials', {
+        method: 'POST',
+        body: toMaterialPayload(product),
+      })
+
+      upsertProduct(mapMaterial(response.data.material))
+      return
+    }
+
+    const examResponse = await apiRequest<{ status: string; data: { exam: ExamSummaryApi } }>('/admin/exams', {
+      method: 'POST',
+      body: toExamPayload(product),
+    })
+
+    const examId = String(examResponse.data.exam.id)
+
+    for (const [index, question] of (product.questions ?? []).entries()) {
+      await apiRequest(`/admin/exams/${examId}/questions`, {
+        method: 'POST',
+        body: toQuestionPayload(question, index),
+      })
+    }
+
+    await fetchAdminExam(examId)
+  }
+
+  const addProductsBulk = async (newProducts: ProductInput[]) => {
+    for (const product of newProducts) {
+      await addProduct(product)
+    }
+  }
+
+  const updateProduct = async (updated: ProductInput) => {
+    if (!updated.id) {
+      throw new Error('Missing product id for update.')
+    }
+
+    if (updated.type === 'material') {
+      const response = await apiRequest<{ status: string; data: { material: MaterialApi } }>(`/admin/materials/${updated.id}`, {
+        method: 'PUT',
+        body: toMaterialPayload(updated),
+      })
+
+      upsertProduct(mapMaterial(response.data.material))
+      return
+    }
+
+    await apiRequest(`/admin/exams/${updated.id}`, {
+      method: 'PUT',
+      body: toExamPayload(updated),
+    })
+
+    const existingExam = await fetchAdminExam(updated.id)
+
+    for (const question of existingExam.questions ?? []) {
+      await apiRequest(`/admin/questions/${question.id}`, {
+        method: 'DELETE',
+      })
+    }
+
+    for (const [index, question] of (updated.questions ?? []).entries()) {
+      await apiRequest(`/admin/exams/${updated.id}/questions`, {
+        method: 'POST',
+        body: toQuestionPayload(question, index),
+      })
+    }
+
+    await fetchAdminExam(updated.id)
+  }
+
+  const deleteProduct = async (id: string) => {
+    const product = products.value.find((entry) => entry.id === id)
+
+    if (!product) {
+      return
+    }
+
+    const endpoint = product.type === 'material'
+      ? `/admin/materials/${id}`
+      : `/admin/exams/${id}`
+
+    await apiRequest(endpoint, {
+      method: 'DELETE',
+    })
+
+    products.value = products.value.filter((entry) => entry.id !== id)
+  }
 
   watch(
     cart,
@@ -327,36 +647,38 @@ export const useCatalogStore = defineStore('catalog', () => {
     { deep: true },
   )
 
-  watch(
-    categories,
-    (value) => {
-      persistStorage('atcsedu-categories', value)
-    },
-    { deep: true },
-  )
-
   return {
     products,
     purchasedIds,
     categories,
+    isLoading,
+    hasLoaded,
+    loadError,
     cartItems,
     cartItemCount,
     cartTotal,
     revenueEstimate,
+    initialize,
+    fetchExamDetails,
+    fetchAdminExam,
+    fetchMaterialDetails,
+    applyExamReview,
     addToCart,
     updateQuantity,
     addProduct,
     addProductsBulk,
+    updateProduct,
     deleteProduct,
     buyProduct,
+    purchaseProduct,
     addCategory: (name: string) => {
       const trimmed = name.trim()
-      if (trimmed && !categories.value.some(c => c.toLowerCase() === trimmed.toLowerCase())) {
+      if (trimmed && !categories.value.some((category) => category.toLowerCase() === trimmed.toLowerCase())) {
         categories.value.push(trimmed)
       }
     },
     deleteCategory: (name: string) => {
-      const index = categories.value.findIndex(c => c === name)
+      const index = categories.value.findIndex((category) => category === name)
       if (index !== -1) {
         categories.value.splice(index, 1)
       }

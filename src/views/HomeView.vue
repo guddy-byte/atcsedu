@@ -10,39 +10,51 @@ import { useCatalogStore } from '../stores/catalog'
 
 const catalog = useCatalogStore()
 
-const highlights = computed(() => [
-  {
-    label: 'Students reached',
-    value: '3,450+',
-    note: 'Learners accessing exam preparation and digital study support.',
-  },
-  {
-    label: 'Materials available',
-    value: '500+',
-    note: 'Free and paid resources arranged for quick access.',
-  },
-  {
-    label: 'Exam support rating',
-    value: '96%',
-    note: 'Confidence score from our internal readiness benchmark.',
-  },
-])
+const highlights = computed(() => {
+  const materials = catalog.products.filter((product) => product.type === 'material')
+  const exams = catalog.products.filter((product) => product.type === 'cbt')
+  const paidListings = catalog.products.filter((product) => product.accessType === 'paid')
+
+  return [
+    {
+      label: 'Materials live',
+      value: String(materials.length),
+      note: materials.length
+        ? 'Resources currently published on the platform.'
+        : 'No study materials have been published yet.',
+    },
+    {
+      label: 'Exam trainings live',
+      value: String(exams.length),
+      note: exams.length
+        ? 'Live CBT exams available to learners.'
+        : 'No exam training tests are live yet.',
+    },
+    {
+      label: 'Paid listings',
+      value: String(paidListings.length),
+      note: paidListings.length
+        ? 'Items with active pricing in the catalog.'
+        : 'No prices or premium listings are published yet.',
+    },
+  ]
+})
 
 const quickLinks = [
   {
     id: 'outcomes',
-    label: 'Platform impact',
-    description: 'See trusted numbers and outcomes first.',
+    label: 'Live totals',
+    description: 'See the current platform counts at a glance.',
   },
   {
     id: 'discover',
-    label: 'Discover by category',
-    description: 'Jump straight to free or paid options.',
+    label: 'Browse catalog',
+    description: 'Check what is currently published in the library.',
   },
   {
     id: 'featured',
-    label: 'Featured resources',
-    description: 'Browse the most popular picks quickly.',
+    label: 'Latest items',
+    description: 'Review the newest live resources and exam entries.',
   },
 ]
 </script>
@@ -55,10 +67,10 @@ const quickLinks = [
       <div class="mb-4 flex items-center justify-between gap-3">
         <h2 class="text-lg font-extrabold tracking-tight text-slate-900 sm:text-xl">Quick navigation</h2>
         <RouterLink
-          to="/materials/free"
+          to="/admin/auth/login"
           class="rounded-full bg-rose-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-primary"
         >
-          Start learning
+          Open admin
         </RouterLink>
       </div>
 

@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 import MaterialCard from '../components/MaterialCard.vue'
 import { useCatalogStore } from '../stores/catalog'
+import { isStudentAuthenticated } from '../utils/studentAuth'
 
 const props = defineProps<{
   mode: 'free' | 'paid'
@@ -12,9 +13,12 @@ const props = defineProps<{
 }>()
 
 const catalog = useCatalogStore()
+const router = useRouter()
 const searchQuery = ref('')
 const currentPage = ref(1)
 const perPage = 6
+const actionError = ref('')
+const purchasePendingId = ref('')
 
 const modeLabel = computed(() => (props.mode === 'free' ? 'Free materials' : 'Paid materials'))
 
@@ -26,6 +30,10 @@ const modeDescription = computed(() =>
 
 const filteredProducts = computed(() =>
   catalog.products.filter((product) => {
+    if (product.type !== 'material') {
+      return false
+    }
+
     if (product.accessType !== props.mode) {
       return false
     }
@@ -71,10 +79,41 @@ watch(filteredProducts, () => {
     currentPage.value = pageCount.value
   }
 })
+
+const handlePurchase = async (productId: string) => {
+  actionError.value = ''
+
+  if (!isStudentAuthenticated()) {
+    router.push('/auth/login')
+    return
+  }
+
+  purchasePendingId.value = productId
+
+  try {
+    await catalog.purchaseProduct(productId)
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : 'Unable to complete purchase.'
+  } finally {
+    purchasePendingId.value = ''
+  }
+}
+
+onMounted(() => {
+  if (!catalog.hasLoaded) {
+    void catalog.initialize().catch(() => {
+      // Screen shows store loadError.
+    })
+  }
+})
 </script>
 
 <template>
   <section class="grid gap-6">
+    <div v-if="catalog.loadError || actionError" class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+      {{ actionError || catalog.loadError }}
+    </div>
+
     <div class="overflow-hidden rounded-[2rem] border border-white/80 bg-white shadow-[0_20px_70px_rgba(117,49,108,0.08)]">
       <div class="bg-[linear-gradient(120deg,rgba(237,69,97,0.1),rgba(117,49,108,0.12))] px-8 py-7">
         <p class="text-xs font-semibold uppercase tracking-[0.28em] text-secondary">Material library</p>
@@ -139,12 +178,16 @@ watch(filteredProducts, () => {
       <p class="text-xs text-slate-500">Tip: Use specific keywords to narrow down results quickly.</p>
     </div>
 
-    <div v-if="filteredProducts.length" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <div v-if="catalog.isLoading" class="rounded-[1.6rem] border border-slate-100 bg-white px-6 py-12 text-center text-sm font-semibold text-slate-500">
+      Loading materials...
+    </div>
+
+    <div v-else-if="filteredProducts.length" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       <MaterialCard
         v-for="product in paginatedProducts"
         :key="product.id"
         :product="product"
-        @pay="catalog.addToCart"
+        @pay="handlePurchase"
       />
     </div>
 

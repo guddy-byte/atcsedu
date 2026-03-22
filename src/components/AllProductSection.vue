@@ -25,24 +25,32 @@ const featuredProducts = computed(() => props.products.slice(0, 6))
       <div>
         <p class="text-xs font-semibold uppercase tracking-[0.26em] text-secondary">All products</p>
         <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-950">
-          Explore the current material collection.
+          Review the items that are currently live.
         </h2>
       </div>
       <RouterLink
-        to="/auth/signup"
+        to="/admin/auth/login"
         class="inline-flex items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white shadow-[0_16px_26px_rgba(237,69,97,0.22)]"
       >
-        Apply as a student
+        Open admin login
       </RouterLink>
     </div>
 
-    <div class="relative grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <div v-if="featuredProducts.length" class="relative grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       <MaterialCard
         v-for="product in featuredProducts"
         :key="product.id"
         :product="product"
         @pay="emit('pay', $event)"
       />
+    </div>
+
+    <div
+      v-else
+      class="relative rounded-[1.4rem] border border-dashed border-rose-200 bg-white/70 px-6 py-10 text-center"
+    >
+      <p class="text-sm font-semibold text-slate-700">No materials or exam trainings are live yet.</p>
+      <p class="mt-2 text-sm text-slate-500">This section will stay clean until you publish real catalog items.</p>
     </div>
   </section>
 </template>

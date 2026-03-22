@@ -13,6 +13,9 @@ return new class extends Migration
     {
         Schema::create('payment_webhooks', function (Blueprint $table) {
             $table->id();
+            $table->string('provider')->default('paystack');
+            $table->string('event')->nullable();
+            $table->longText('payload');
             $table->timestamps();
         });
     }

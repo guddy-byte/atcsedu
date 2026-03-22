@@ -13,6 +13,11 @@ return new class extends Migration
     {
         Schema::create('questions', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('exam_id')->constrained()->cascadeOnDelete();
+            $table->enum('type', ['objective', 'theory']);
+            $table->longText('prompt');
+            $table->unsignedInteger('points')->default(1);
+            $table->unsignedInteger('position')->default(1);
             $table->timestamps();
         });
     }

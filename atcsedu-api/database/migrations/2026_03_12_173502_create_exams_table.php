@@ -13,6 +13,16 @@ return new class extends Migration
     {
         Schema::create('exams', function (Blueprint $table) {
             $table->id();
+            $table->string('title');
+            $table->string('slug')->unique();
+            $table->string('category')->nullable();
+            $table->enum('access_type', ['free', 'paid'])->default('free');
+            $table->decimal('price', 12, 2)->default(0);
+            $table->unsignedInteger('duration_minutes')->default(30);
+            $table->unsignedInteger('attempt_limit')->default(0);
+            $table->text('description')->nullable();
+            $table->boolean('is_published')->default(true);
+            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
         });
     }

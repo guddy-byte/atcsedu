@@ -102,21 +102,36 @@ const handleFileUpload = (event: any) => {
 }
 
 const showSuccess = ref(false)
-const handleSubmit = () => {
-  if (props.type === 'bulk') {
-    catalog.addProductsBulk(bulkItems.value)
-  } else if (props.editProduct) {
-    catalog.updateProduct(formData)
-    showSuccess.value = true
-    setTimeout(() => {
-      showSuccess.value = false
+const submitError = ref('')
+const isSaving = ref(false)
+const handleSubmit = async () => {
+  submitError.value = ''
+  isSaving.value = true
+
+  try {
+    if (props.type === 'bulk') {
+      await catalog.addProductsBulk(bulkItems.value)
       emit('close')
-    }, 1500)
-    return
-  } else {
-    catalog.addProduct({ ...formData })
+      return
+    }
+
+    if (props.editProduct) {
+      await catalog.updateProduct({ ...formData, id: props.editProduct.id })
+      showSuccess.value = true
+      setTimeout(() => {
+        showSuccess.value = false
+        emit('close')
+      }, 1200)
+      return
+    }
+
+    await catalog.addProduct({ ...formData })
+    emit('close')
+  } catch (error) {
+    submitError.value = error instanceof Error ? error.message : 'Unable to save this resource.'
+  } finally {
+    isSaving.value = false
   }
-  emit('close')
 }
 
 // Bulk state
@@ -500,15 +515,18 @@ const downloadTemplate = () => {
           <span class="font-black text-sm">Material updated successfully!</span>
         </div>
       </transition>
+      <p v-if="submitError" class="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+        {{ submitError }}
+      </p>
       <div class="mt-10 flex border-t border-slate-100 pt-8 justify-end gap-3">
         <button @click="$emit('close')" class="rounded-2xl border border-slate-200 px-8 py-3 text-sm font-bold text-slate-500">Cancel</button>
         <button 
-          @click="handleSubmit" 
-          :disabled="!isFormValid"
+          @click="void handleSubmit()" 
+          :disabled="!isFormValid || isSaving"
           class="rounded-2xl px-8 py-3 text-sm font-black text-white shadow-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
           :class="isFormValid ? 'bg-secondary shadow-rose-200' : 'bg-slate-300'"
         >
-          {{ type === 'bulk' ? 'Execute Bulk Upload' : (editProduct ? 'Update' : 'Upload Item') }}
+          {{ isSaving ? 'Saving...' : (type === 'bulk' ? 'Execute Bulk Upload' : (editProduct ? 'Update' : 'Upload Item')) }}
         </button>
       </div>
     </div>
