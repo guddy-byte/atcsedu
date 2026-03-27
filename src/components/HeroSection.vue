@@ -26,38 +26,11 @@ import heroImage from '../images/hero.png'
 
         <div class="flex flex-wrap items-center gap-3">
           <RouterLink
-            to="/admin/auth/login"
-            class="inline-flex items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-bold text-rose-600 transition hover:-translate-y-0.5"
-          >
-            Open admin dashboard
-          </RouterLink>
-          <RouterLink
             to="/materials/free"
             class="inline-flex items-center justify-center rounded-full border border-white/45 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/20"
           >
             View live catalog
           </RouterLink>
-        </div>
-
-        <div class="grid gap-3 sm:grid-cols-3">
-          <article class="rounded-2xl border border-white/20 bg-white/10 px-4 py-3 backdrop-blur-sm">
-            <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-rose-100">Step 1</p>
-            <p class="mt-1 text-sm font-semibold">Create a category</p>
-          </article>
-          <article class="rounded-2xl border border-white/20 bg-white/10 px-4 py-3 backdrop-blur-sm">
-            <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-rose-100">Step 2</p>
-            <p class="mt-1 text-sm font-semibold">Publish a resource</p>
-          </article>
-          <article class="rounded-2xl border border-white/20 bg-white/10 px-4 py-3 backdrop-blur-sm">
-            <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-rose-100">Step 3</p>
-            <p class="mt-1 text-sm font-semibold">Open it to learners</p>
-          </article>
-        </div>
-
-        <div class="flex flex-wrap items-center gap-4 text-rose-50">
-          <div class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold backdrop-blur-sm">
-            No demo materials or mock exam listings are being shown.
-          </div>
         </div>
       </div>
 

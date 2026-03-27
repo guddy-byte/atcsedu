@@ -370,8 +370,24 @@ const downloadTemplate = () => {
           <!-- Material Specific (Single) -->
           <template v-if="type === 'material'">
             <label class="block">
-              <span class="text-sm font-bold text-slate-700">Attach File (PDF, DOC, etc)</span>
+              <span class="text-sm font-bold text-slate-700">Protected Material URL</span>
+              <input
+                v-model="formData.downloadUrl"
+                type="url"
+                class="mt-1 w-full rounded-2xl border border-slate-200 p-3 text-sm"
+                placeholder="Paste a PDF, Google Drive preview link, or hosted embeddable URL"
+              />
+              <p class="mt-2 text-xs leading-5 text-slate-500">
+                Students will view this material inside their dashboard after payment. Use a hosted URL that can be embedded in an iframe.
+              </p>
+            </label>
+
+            <label class="block">
+              <span class="text-sm font-bold text-slate-700">Optional filename helper</span>
               <input type="file" @change="handleFileUpload" class="mt-1 w-full rounded-2xl border border-dashed border-slate-300 p-8 text-sm text-slate-500" />
+              <p class="mt-2 text-xs leading-5 text-slate-500">
+                This only pre-fills the title and a placeholder path. For production viewing, the URL field above should contain the real hosted material link.
+              </p>
             </label>
           </template>
 

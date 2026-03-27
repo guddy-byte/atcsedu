@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { RouterLink } from 'vue-router'
 
 import type { Product } from '../stores/catalog'
 import MaterialCard from './MaterialCard.vue'
 
 const props = defineProps<{
   products: Product[]
+  pendingProductId?: string
 }>()
 
 const emit = defineEmits<{
-  pay: [productId: string]
+  pay: [payload: { productId: string; productType: Product['type'] }]
 }>()
 
 const selectedCategory = ref<'materials' | 'paid' | 'free'>('materials')
@@ -125,6 +125,7 @@ const showMore = () => {
         v-for="product in paginatedProducts"
         :key="product.id"
         :product="product"
+        :is-paying="props.pendingProductId === product.id"
         @pay="emit('pay', $event)"
       />
     </div>
@@ -137,15 +138,8 @@ const showMore = () => {
         {{ searchQuery ? 'No live items matched your search.' : 'The catalog is still empty.' }}
       </p>
       <p class="mt-2 text-sm text-slate-500">
-        {{ searchQuery ? 'Try a different keyword or clear the filter.' : 'Publish your first real material or exam from the admin dashboard.' }}
+        {{ searchQuery ? 'Try a different keyword or clear the filter.' : 'Real materials and exam trainings will appear here once they go live.' }}
       </p>
-      <RouterLink
-        v-if="!searchQuery"
-        to="/admin/auth/login"
-        class="mt-4 inline-flex items-center justify-center rounded-full border border-rose-100 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-primary/30 hover:text-primary"
-      >
-        Open admin login
-      </RouterLink>
     </div>
 
     <div v-if="hasMoreProducts" class="relative flex flex-wrap items-center justify-center gap-2 border-t border-rose-100 pt-4">

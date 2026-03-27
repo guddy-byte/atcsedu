@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 
 import MaterialCard from '../components/MaterialCard.vue'
 import { useCatalogStore } from '../stores/catalog'
+import { setPendingStudentPurchase } from '../utils/pendingStudentPurchase'
 import { isStudentAuthenticated } from '../utils/studentAuth'
 
 const props = defineProps<{
@@ -19,6 +20,11 @@ const currentPage = ref(1)
 const perPage = 6
 const actionError = ref('')
 const purchasePendingId = ref('')
+
+type PurchasePayload = {
+  productId: string
+  productType: 'material' | 'cbt'
+}
 
 const modeLabel = computed(() => (props.mode === 'free' ? 'Free materials' : 'Paid materials'))
 
@@ -80,18 +86,19 @@ watch(filteredProducts, () => {
   }
 })
 
-const handlePurchase = async (productId: string) => {
+const handlePurchase = async ({ productId, productType }: PurchasePayload) => {
   actionError.value = ''
 
   if (!isStudentAuthenticated()) {
-    router.push('/auth/login')
+    setPendingStudentPurchase(productId, productType)
+    await router.push('/auth/signup')
     return
   }
 
   purchasePendingId.value = productId
 
   try {
-    await catalog.purchaseProduct(productId)
+    await catalog.purchaseProduct(productId, productType)
   } catch (error) {
     actionError.value = error instanceof Error ? error.message : 'Unable to complete purchase.'
   } finally {
@@ -187,6 +194,7 @@ onMounted(() => {
         v-for="product in paginatedProducts"
         :key="product.id"
         :product="product"
+        :is-paying="purchasePendingId === product.id"
         @pay="handlePurchase"
       />
     </div>

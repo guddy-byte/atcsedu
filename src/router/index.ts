@@ -2,6 +2,7 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
 import AccountSuccessfullyView from '../Auth/AccountSuccessfullyView.vue'
 import LoginView from '../Auth/LoginView.vue'
+import PaymentCallbackView from '../Auth/PaymentCallbackView.vue'
 import ResetOtpView from '../Auth/ResetOtpView.vue'
 import ResetPasswordView from '../Auth/ResetPasswordView.vue'
 import SignupView from '../Auth/SignupView.vue'
@@ -63,6 +64,7 @@ const routes: RouteRecordRaw[] = [
     component: ContactView,
   },
   { path: '/cart', name: 'cart', component: CartView },
+  { path: '/payments/callback', name: 'payment-callback', component: PaymentCallbackView },
   { path: '/admin', name: 'admin', component: AdminDashboardView },
   { path: '/admin/auth/login', name: 'admin-login', component: AdminLoginView },
   { path: '/admin/auth/reset-otp', name: 'admin-reset-otp', component: AdminResetOtpView },

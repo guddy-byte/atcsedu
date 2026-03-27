@@ -97,10 +97,12 @@ export async function registerUser(payload: {
   password: string
   password_confirmation: string
 }) {
-  return apiRequest<AuthSuccessPayload>('/auth/register', {
+  const response = await apiRequest<AuthSuccessPayload>('/auth/register', {
     method: 'POST',
     body: payload,
   })
+
+  return storeLoginSession(response)
 }
 
 export async function loginUser(payload: {

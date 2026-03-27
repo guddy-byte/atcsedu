@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { RouterLink } from 'vue-router'
 
 import type { Product } from '../stores/catalog'
 import MaterialCard from './MaterialCard.vue'
 
 const props = defineProps<{
   products: Product[]
+  pendingProductId?: string
 }>()
 
 const emit = defineEmits<{
-  pay: [productId: string]
+  pay: [payload: { productId: string; productType: Product['type'] }]
 }>()
 
 const featuredProducts = computed(() => props.products.slice(0, 6))
@@ -28,12 +28,6 @@ const featuredProducts = computed(() => props.products.slice(0, 6))
           Review the items that are currently live.
         </h2>
       </div>
-      <RouterLink
-        to="/admin/auth/login"
-        class="inline-flex items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-white shadow-[0_16px_26px_rgba(237,69,97,0.22)]"
-      >
-        Open admin login
-      </RouterLink>
     </div>
 
     <div v-if="featuredProducts.length" class="relative grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -41,6 +35,7 @@ const featuredProducts = computed(() => props.products.slice(0, 6))
         v-for="product in featuredProducts"
         :key="product.id"
         :product="product"
+        :is-paying="props.pendingProductId === product.id"
         @pay="emit('pay', $event)"
       />
     </div>

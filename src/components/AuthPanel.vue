@@ -2,8 +2,9 @@
 import { computed, ref } from 'vue'
 import { RouterLink, useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 
+import { useCatalogStore } from '../stores/catalog'
+import { consumePendingStudentPurchase, getPendingStudentPurchase, setPendingStudentPurchase } from '../utils/pendingStudentPurchase'
 import {
-  DEMO_STUDENT_CREDENTIALS,
   loginStudent,
   registerStudent,
 } from '../utils/studentAuth'
@@ -23,6 +24,7 @@ const props = withDefaults(defineProps<{
 
 const route = useRoute()
 const router = useRouter()
+const catalog = useCatalogStore()
 const fullName = ref('')
 const email = ref('')
 const secret = ref('')
@@ -49,12 +51,28 @@ const buildRouteWithRedirect = (path: string): RouteLocationRaw => {
 
 const primaryRoute = computed(() => buildRouteWithRedirect(props.primaryTo))
 const secondaryRoute = computed(() => buildRouteWithRedirect(props.secondaryTo))
+const hasPendingPayment = computed(() => Boolean(getPendingStudentPurchase()))
 const secretLabel = computed(() => (props.mode === 'signup' ? 'Create password' : 'Password'))
 const secretPlaceholder = computed(() =>
   props.mode === 'signup' ? 'Create a secure password' : 'Enter your password',
 )
+const authPanelSummary = computed(() => {
+  if (hasPendingPayment.value) {
+    return props.mode === 'signup'
+      ? 'Create your student account to continue directly to secure payment for this material.'
+      : 'Sign in to continue directly to secure payment for the item you selected.'
+  }
+
+  return 'Use your details below to continue.'
+})
 const authChecklist = computed(() =>
-  props.mode === 'signup'
+  hasPendingPayment.value
+    ? [
+        'Your selected paid item will be remembered while you complete authentication.',
+        'Once you finish, checkout will continue automatically.',
+        'After payment, your protected material will open from your dashboard.',
+      ]
+    : props.mode === 'signup'
     ? [
         'Create your account in less than 1 minute.',
         'Access free and paid exam preparation instantly.',
@@ -67,10 +85,21 @@ const authChecklist = computed(() =>
       ],
 )
 
-const fillStudentDemoCredentials = () => {
-  email.value = DEMO_STUDENT_CREDENTIALS.email
-  secret.value = DEMO_STUDENT_CREDENTIALS.password
-  errorMessage.value = ''
+const continuePendingPurchase = async () => {
+  const pendingPurchase = consumePendingStudentPurchase()
+
+  if (!pendingPurchase) {
+    return false
+  }
+
+  try {
+    await catalog.initialize()
+    await catalog.purchaseProduct(pendingPurchase.productId, pendingPurchase.productType)
+    return true
+  } catch (error) {
+    setPendingStudentPurchase(pendingPurchase.productId, pendingPurchase.productType)
+    throw error
+  }
 }
 
 const submitPrimaryAction = async () => {
@@ -97,6 +126,11 @@ const submitPrimaryAction = async () => {
       }
 
       await registerStudent(fullName.value.trim(), normalizedEmail, normalizedSecret)
+
+      if (await continuePendingPurchase()) {
+        return
+      }
+
       router.push(primaryRoute.value)
       return
     }
@@ -113,6 +147,11 @@ const submitPrimaryAction = async () => {
       }
 
       await loginStudent(normalizedEmail, normalizedSecret)
+
+      if (await continuePendingPurchase()) {
+        return
+      }
+
       router.push(redirectTarget.value ?? props.primaryTo)
       return
     }
@@ -144,25 +183,12 @@ const submitPrimaryAction = async () => {
           {{ item }}
         </div>
       </div>
-
-      <div v-if="mode === 'login'" class="mt-6 rounded-xl border border-white/20 bg-white/12 px-4 py-3 text-sm">
-        <p class="font-semibold">Seeded test login</p>
-        <p class="mt-1 break-all text-rose-100">{{ DEMO_STUDENT_CREDENTIALS.email }}</p>
-        <p class="text-rose-100">{{ DEMO_STUDENT_CREDENTIALS.password }}</p>
-        <button
-          type="button"
-          class="mt-3 inline-flex rounded-full border border-white/30 px-3 py-1 text-xs font-semibold text-white hover:bg-white/10"
-          @click="fillStudentDemoCredentials"
-        >
-          Use demo credentials
-        </button>
-      </div>
     </div>
 
     <form class="grid content-start gap-4 rounded-[1.6rem] border border-rose-100 bg-rose-50/55 p-5 sm:p-6" @submit.prevent="submitPrimaryAction">
       <div>
         <h3 class="text-xl font-extrabold tracking-tight text-slate-900">Welcome</h3>
-        <p class="mt-1 text-sm text-slate-600">Use your details below to continue.</p>
+        <p class="mt-1 text-sm text-slate-600">{{ authPanelSummary }}</p>
       </div>
 
       <label v-if="mode === 'signup'" class="grid gap-2">

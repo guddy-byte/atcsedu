@@ -151,6 +151,8 @@ interface PaymentInitializeResponse {
   }
 }
 
+type ServerPurchaseItemType = 'exam' | 'material'
+
 const fallbackImageByCategory: Record<string, string> = {
   Mathematics:
     'https://images.unsplash.com/photo-1529390079861-591de354faf5?auto=format&fit=crop&w=1200&q=80',
@@ -174,6 +176,12 @@ const getFallbackImage = (category: string) =>
   fallbackImageByCategory[category] ?? fallbackImageByCategory.General
 
 const canUseStorage = typeof window !== 'undefined'
+const PURCHASE_STORAGE_KEY = 'atcsedu-purchased'
+
+const toPurchaseKey = (productId: string, productType: Product['type']) => `${productType}:${productId}`
+
+const toProductType = (itemType: ServerPurchaseItemType): Product['type'] =>
+  itemType === 'exam' ? 'cbt' : 'material'
 
 const readStorage = <T>(key: string, fallback: T): T => {
   if (!canUseStorage) {
@@ -312,11 +320,33 @@ const uniqueCategories = (products: Product[], existing: string[]) => {
 export const useCatalogStore = defineStore('catalog', () => {
   const products = ref<Product[]>([])
   const cart = ref<CartItem[]>(readStorage('atcsedu-cart', []))
-  const purchasedIds = ref<string[]>(readStorage('atcsedu-purchased', []))
+  const purchasedIds = ref<string[]>(readStorage(PURCHASE_STORAGE_KEY, []))
   const categories = ref<string[]>([])
   const isLoading = ref(false)
   const hasLoaded = ref(false)
   const loadError = ref('')
+
+  const normalizePurchasedKeys = (entries: string[], availableProducts: Product[]) => {
+    const normalized = new Set<string>()
+
+    entries.forEach((entry) => {
+      if (entry.includes(':')) {
+        if (availableProducts.some((product) => toPurchaseKey(product.id, product.type) === entry)) {
+          normalized.add(entry)
+        }
+
+        return
+      }
+
+      const matches = availableProducts.filter((product) => product.id === entry)
+
+      if (matches.length === 1) {
+        normalized.add(toPurchaseKey(matches[0].id, matches[0].type))
+      }
+    })
+
+    return Array.from(normalized)
+  }
 
   const syncCategories = () => {
     categories.value = uniqueCategories(products.value, [])
@@ -341,9 +371,12 @@ export const useCatalogStore = defineStore('catalog', () => {
   const replaceProducts = (nextProducts: Product[]) => {
     products.value = nextProducts
     cart.value = cart.value.filter((item) => nextProducts.some((product) => product.id === item.productId))
-    purchasedIds.value = purchasedIds.value.filter((id) => nextProducts.some((product) => product.id === id))
+    purchasedIds.value = normalizePurchasedKeys(purchasedIds.value, nextProducts)
     syncCategories()
   }
+
+  const isProductPurchased = (productId: string, productType: Product['type']) =>
+    purchasedIds.value.includes(toPurchaseKey(productId, productType))
 
   const initialize = async (force = false) => {
     if (hasLoaded.value && !force) {
@@ -412,10 +445,9 @@ export const useCatalogStore = defineStore('catalog', () => {
   }
 
   const revenueEstimate = computed(() =>
-    purchasedIds.value.reduce((total, id) => {
-      const product = products.value.find((entry) => entry.id === id)
-      return total + (product?.price || 0)
-    }, 0),
+    products.value.reduce((total, product) => (
+      isProductPurchased(product.id, product.type) ? total + product.price : total
+    ), 0),
   )
 
   const cartItems = computed<CartProduct[]>(() =>
@@ -468,14 +500,20 @@ export const useCatalogStore = defineStore('catalog', () => {
     }
   }
 
-  const buyProduct = (id: string) => {
-    if (!purchasedIds.value.includes(id)) {
-      purchasedIds.value.push(id)
+  const buyProduct = (productId: string, productType: Product['type']) => {
+    const purchaseKey = toPurchaseKey(productId, productType)
+
+    if (!purchasedIds.value.includes(purchaseKey)) {
+      purchasedIds.value.push(purchaseKey)
     }
   }
 
-  const purchaseProduct = async (productId: string) => {
-    const product = products.value.find((entry) => entry.id === productId)
+  const markServerPurchase = (itemType: ServerPurchaseItemType, itemId: number | string) => {
+    buyProduct(String(itemId), toProductType(itemType))
+  }
+
+  const purchaseProduct = async (productId: string, productType: Product['type']) => {
+    const product = products.value.find((entry) => entry.id === productId && entry.type === productType)
 
     if (!product) {
       throw new Error('The selected product could not be found.')
@@ -491,7 +529,7 @@ export const useCatalogStore = defineStore('catalog', () => {
 
     if (response.data.is_simulated) {
       await apiRequest(`/payments/${response.data.reference}/verify?simulate=1`)
-      buyProduct(productId)
+      buyProduct(product.id, product.type)
       return response.data
     }
 
@@ -642,7 +680,7 @@ export const useCatalogStore = defineStore('catalog', () => {
   watch(
     purchasedIds,
     (value) => {
-      persistStorage('atcsedu-purchased', value)
+      persistStorage(PURCHASE_STORAGE_KEY, value)
     },
     { deep: true },
   )
@@ -650,6 +688,7 @@ export const useCatalogStore = defineStore('catalog', () => {
   return {
     products,
     purchasedIds,
+    isProductPurchased,
     categories,
     isLoading,
     hasLoaded,
@@ -670,6 +709,7 @@ export const useCatalogStore = defineStore('catalog', () => {
     updateProduct,
     deleteProduct,
     buyProduct,
+    markServerPurchase,
     purchaseProduct,
     addCategory: (name: string) => {
       const trimmed = name.trim()

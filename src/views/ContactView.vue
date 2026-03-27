@@ -216,14 +216,14 @@ const renderStars = (rating: number) => '★'.repeat(rating) + '☆'.repeat(5 - 
           <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p class="text-xs font-semibold uppercase tracking-[0.22em] text-secondary">Office location</p>
-              <h3 class="mt-2 text-2xl font-extrabold tracking-tight text-slate-950">Lagos, Nigeria</h3>
+              <h3 class="mt-2 text-2xl font-extrabold tracking-tight text-slate-950">Open University (NOUN), Ogun State, Nigeria</h3>
               <p class="mt-3 max-w-xl text-sm leading-7 text-slate-600">
-                Visit the ATCS EDU support point in Lagos for platform guidance, application support, and exam preparation enquiries.
+                Visit the ATCS EDU support point at Open University (NOUN) in Ogun State for platform guidance, application support, and exam preparation enquiries.
               </p>
             </div>
 
             <a
-              href="https://www.google.com/maps/search/?api=1&query=Lagos%2C+Nigeria"
+              href="https://www.google.com/maps/search/?api=1&query=Open+University+%28NOUN%29%2C+Ogun+State%2C+Nigeria"
               target="_blank"
               rel="noreferrer"
               class="inline-flex items-center justify-center rounded-full border border-rose-100 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-primary transition hover:bg-rose-100"
@@ -234,8 +234,8 @@ const renderStars = (rating: number) => '★'.repeat(rating) + '☆'.repeat(5 - 
 
           <div class="mt-5 overflow-hidden rounded-[1.4rem] border border-rose-100 bg-rose-50/60">
             <iframe
-              title="ATCS EDU location map"
-              src="https://www.openstreetmap.org/export/embed.html?bbox=3.1815%2C6.4281%2C3.6015%2C6.7081&layer=mapnik&marker=6.5244%2C3.3792"
+              title="Open University (NOUN) location map"
+              src="https://maps.google.com/maps?q=Open%20University%20(NOUN)%2C%20Ogun%20State%2C%20Nigeria&z=14&output=embed"
               class="h-[320px] w-full border-0"
               loading="lazy"
               referrerpolicy="no-referrer-when-downgrade"
@@ -246,16 +246,16 @@ const renderStars = (rating: number) => '★'.repeat(rating) + '☆'.repeat(5 - 
         <div class="grid gap-4 md:grid-cols-2">
           <div class="rounded-[1.6rem] border border-rose-100 bg-white p-5 shadow-[0_14px_40px_rgba(117,49,108,0.06)]">
             <p class="text-xs font-semibold uppercase tracking-[0.22em] text-secondary">Call us</p>
-            <a href="tel:+2348000000000" class="mt-3 block text-xl font-extrabold tracking-tight text-slate-950">
-              +234 800 000 0000
+            <a href="tel:+2348059027799" class="mt-3 block text-xl font-extrabold tracking-tight text-slate-950">
+              +234 8059027799
             </a>
             <p class="mt-2 text-sm leading-7 text-slate-600">Speak with the support team for urgent student or platform questions.</p>
           </div>
 
           <div class="rounded-[1.6rem] border border-rose-100 bg-white p-5 shadow-[0_14px_40px_rgba(117,49,108,0.06)]">
             <p class="text-xs font-semibold uppercase tracking-[0.22em] text-secondary">Email us</p>
-            <a href="mailto:support@atcsedu.com" class="mt-3 block text-xl font-extrabold tracking-tight text-slate-950">
-              support@atcsedu.com
+            <a href="mailto:admin@atcsedu.com.ng" class="mt-3 block text-xl font-extrabold tracking-tight text-slate-950">
+              admin@atcsedu.com.ng
             </a>
             <p class="mt-2 text-sm leading-7 text-slate-600">Send materials, onboarding, exam, or account-related enquiries at any time.</p>
           </div>

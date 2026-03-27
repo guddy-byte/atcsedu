@@ -48,14 +48,22 @@ class DatabaseSeeder extends Seeder
                 'role' => User::ROLE_ADMIN,
             ]
         );
-        User::query()->updateOrCreate(
-            ['email' => self::DEMO_STUDENT_EMAIL],
-            [
-                'name' => 'Demo Student',
-                'password' => bcrypt(self::DEMO_STUDENT_PASSWORD),
-                'role' => User::ROLE_STUDENT,
-            ]
-        );
+
+        if ($this->shouldSeedDemoStudent()) {
+            User::query()->updateOrCreate(
+                ['email' => self::DEMO_STUDENT_EMAIL],
+                [
+                    'name' => 'Demo Student',
+                    'password' => bcrypt(self::DEMO_STUDENT_PASSWORD),
+                    'role' => User::ROLE_STUDENT,
+                ]
+            );
+        }
+    }
+
+    private function shouldSeedDemoStudent(): bool
+    {
+        return filter_var((string) env('SEED_DEMO_STUDENT', false), FILTER_VALIDATE_BOOLEAN);
     }
 
     private function removeSeededDemoContent(): void
