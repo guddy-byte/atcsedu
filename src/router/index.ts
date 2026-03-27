@@ -7,6 +7,7 @@ import ResetOtpView from '../Auth/ResetOtpView.vue'
 import ResetPasswordView from '../Auth/ResetPasswordView.vue'
 import SignupView from '../Auth/SignupView.vue'
 import AdminDashboardView from '../Admin/AdminDashboardView.vue'
+import AdminRegisteredUsersView from '../Admin/AdminRegisteredUsersView.vue'
 import AdminLoginView from '../Admin/auth/AdminLoginView.vue'
 import AdminResetOtpView from '../Admin/auth/ResetOtpView.vue'
 import AdminResetPasswordView from '../Admin/auth/ResetPasswordView.vue'
@@ -66,6 +67,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/cart', name: 'cart', component: CartView },
   { path: '/payments/callback', name: 'payment-callback', component: PaymentCallbackView },
   { path: '/admin', name: 'admin', component: AdminDashboardView },
+  { path: '/admin/users', name: 'admin-users', component: AdminRegisteredUsersView },
   { path: '/admin/auth/login', name: 'admin-login', component: AdminLoginView },
   { path: '/admin/auth/reset-otp', name: 'admin-reset-otp', component: AdminResetOtpView },
   {
@@ -98,7 +100,7 @@ router.beforeEach((to) => {
     return resolveProtectedStudentRoute('/exam-training')
   }
 
-  if (to.name === 'admin' && !isAdminAuthenticated()) {
+  if (to.path.startsWith('/admin') && !to.path.startsWith('/admin/auth') && !isAdminAuthenticated()) {
     return '/admin/auth/login'
   }
 

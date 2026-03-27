@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\Admin\AdminDashboardController;
 use App\Http\Controllers\Api\V1\Admin\AdminExamController;
 use App\Http\Controllers\Api\V1\Admin\AdminMaterialController;
 use App\Http\Controllers\Api\V1\Admin\AdminQuestionController;
+use App\Http\Controllers\Api\V1\Admin\AdminUserController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\ExamAccessController;
 use App\Http\Controllers\Api\V1\ExamAttemptController;
@@ -41,6 +42,8 @@ Route::prefix('v1')->group(function (): void {
 
         Route::prefix('admin')->middleware('admin')->group(function (): void {
             Route::get('/dashboard/stats', [AdminDashboardController::class, 'stats']);
+            Route::get('/users', [AdminUserController::class, 'index']);
+            Route::delete('/users/{user}', [AdminUserController::class, 'destroy']);
 
             Route::apiResource('/materials', AdminMaterialController::class);
             Route::apiResource('/exams', AdminExamController::class);

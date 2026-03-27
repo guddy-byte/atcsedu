@@ -42,6 +42,7 @@ const isEditingResource = ref(false)
 const searchQuery = ref('')
 const categoryFilter = ref('')
 const typeFilter = ref('')
+const accessFilter = ref('')
 const sortKey = ref<'title' | 'category' | 'accessType' | 'price'>('title')
 const sortOrder = ref<'asc' | 'desc'>('asc')
 const currentPage = ref(1)
@@ -181,6 +182,10 @@ const filteredAndSortedProducts = computed(() => {
     result = result.filter((product) => product.type === typeFilter.value)
   }
 
+  if (accessFilter.value) {
+    result = result.filter((product) => product.accessType === accessFilter.value)
+  }
+
   result.sort((left, right) => {
     const modifier = sortOrder.value === 'asc' ? 1 : -1
     const leftValue = left[sortKey.value]
@@ -262,26 +267,26 @@ onMounted(() => {
 
     <div class="grid gap-6">
       <section class="rounded-[2.5rem] border border-slate-100 bg-white p-8 shadow-[0_20px_60px_rgba(0,0,0,0.03)]">
-        <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div class="flex flex-col gap-4">
-            <h3 class="text-2xl font-black text-slate-900">Resource Catalog</h3>
-            <div class="flex flex-wrap gap-2">
-              <div class="relative w-full max-w-[240px]">
+        <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div class="flex flex-col gap-2.5">
+            <h3 class="text-xl font-black text-slate-900">Resource Catalog</h3>
+            <div class="flex flex-wrap items-center gap-2">
+              <div class="relative w-full max-w-[210px]">
                 <input
                   v-model="searchQuery"
                   @input="currentPage = 1"
                   type="text"
                   placeholder="Search items..."
-                  class="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-2.5 pl-10 pr-4 text-xs font-bold outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/5 transition-all"
+                  class="w-full rounded-2xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-3.5 text-[11px] font-semibold outline-none transition-all focus:border-primary/30 focus:ring-4 focus:ring-primary/5"
                 />
-                <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="absolute left-3 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
               <select
                 v-model="categoryFilter"
                 @change="currentPage = 1"
-                class="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-600 outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/5 transition-all"
+                class="rounded-2xl border border-slate-200 bg-white px-3.5 py-2 text-[9px] font-black uppercase tracking-[0.14em] text-slate-600 outline-none transition-all focus:border-primary/30 focus:ring-4 focus:ring-primary/5"
               >
                 <option value="">All Categories</option>
                 <option v-for="category in catalog.categories" :key="category" :value="category">
@@ -291,30 +296,39 @@ onMounted(() => {
               <select
                 v-model="typeFilter"
                 @change="currentPage = 1"
-                class="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-slate-600 outline-none focus:border-primary/30 focus:ring-4 focus:ring-primary/5 transition-all"
+                class="rounded-2xl border border-slate-200 bg-white px-3.5 py-2 text-[9px] font-black uppercase tracking-[0.14em] text-slate-600 outline-none transition-all focus:border-primary/30 focus:ring-4 focus:ring-primary/5"
               >
                 <option value="">All Types</option>
                 <option value="material">Materials</option>
                 <option value="cbt">CBT Exams</option>
               </select>
+              <select
+                v-model="accessFilter"
+                @change="currentPage = 1"
+                class="rounded-2xl border border-slate-200 bg-white px-3.5 py-2 text-[9px] font-black uppercase tracking-[0.14em] text-slate-600 outline-none transition-all focus:border-primary/30 focus:ring-4 focus:ring-primary/5"
+              >
+                <option value="">All Access</option>
+                <option value="free">Free</option>
+                <option value="paid">Paid</option>
+              </select>
             </div>
           </div>
-          <div class="relative group">
-            <button class="flex items-center gap-3 rounded-2xl bg-slate-900 px-6 py-4 text-sm font-black text-white shadow-xl transition hover:bg-primary active:scale-95">
+          <div class="relative group self-end sm:self-start">
+            <button class="flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2.5 text-xs font-black text-white shadow-xl transition hover:bg-primary active:scale-95">
               <span>+ Add New Resource</span>
-              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path>
               </svg>
             </button>
-            <div class="invisible absolute right-0 top-full z-10 mt-2 w-56 translate-y-2 rounded-2xl border border-slate-100 bg-white p-2 opacity-0 shadow-2xl transition-all group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
-              <button @click="openAddModal('material')" class="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-xs font-black text-slate-700 hover:bg-slate-50">
+            <div class="invisible absolute right-0 top-full z-10 mt-2 w-52 translate-y-2 rounded-2xl border border-slate-100 bg-white p-1.5 opacity-0 shadow-2xl transition-all group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
+              <button @click="openAddModal('material')" class="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[11px] font-black text-slate-700 hover:bg-slate-50">
                 <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">📄</span> Study Material 
               </button>
-              <button @click="openAddModal('cbt')" class="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-xs font-black text-slate-700 hover:bg-slate-50">
+              <button @click="openAddModal('cbt')" class="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[11px] font-black text-slate-700 hover:bg-slate-50">
                 <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-50 text-blue-600">⏳</span> CBT Exam 
               </button>
               <div class="my-1 border-t border-slate-50"></div>
-              <button @click="openAddModal('bulk')" class="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-xs font-black text-primary hover:bg-rose-50">
+              <button @click="openAddModal('bulk')" class="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[11px] font-black text-primary hover:bg-rose-50">
                 <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-rose-50 text-primary">📦</span> Bulk Upload 
               </button>
             </div>
@@ -436,10 +450,10 @@ onMounted(() => {
 
         <div v-if="filteredAndSortedProducts.length === 0" class="flex flex-col items-center justify-center py-20 text-center text-slate-400">
           <p class="text-sm font-bold text-slate-600">
-            {{ searchQuery ? 'No resources matched your search.' : 'Your dashboard is clean and empty.' }}
+            {{ searchQuery || categoryFilter || typeFilter || accessFilter ? 'No resources matched your current filters.' : 'Your dashboard is clean and empty.' }}
           </p>
           <p class="mt-1 text-[11px] font-medium text-slate-400">
-            {{ searchQuery ? 'Try a different keyword or clear the category filter.' : 'Add your first real study material or CBT exam when you are ready.' }}
+            {{ searchQuery || categoryFilter || typeFilter || accessFilter ? 'Try a different keyword or adjust one of the filters.' : 'Add your first real study material or CBT exam when you are ready.' }}
           </p>
         </div>
         </div>
