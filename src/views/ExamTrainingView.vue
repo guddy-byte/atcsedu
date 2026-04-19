@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { apiRequest } from '../lib/api'
+import { apiRequest, getApiBaseUrl, getApiToken } from '../lib/api'
 import { useCatalogStore, type Product } from '../stores/catalog'
 import { setPendingStudentPurchase } from '../utils/pendingStudentPurchase'
 import { isStudentAuthenticated } from '../utils/studentAuth'
@@ -96,29 +96,43 @@ const formatTime = (seconds: number) => {
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
 }
 
-const buildProtectedMaterialViewerUrl = (rawUrl: string) => {
-  const normalizedUrl = rawUrl.trim()
+const viewerBlobUrl = ref<string | null>(null)
+const isLoadingViewerBlob = ref(false)
 
-  const googleDriveMatch = normalizedUrl.match(/drive\.google\.com\/file\/d\/([^/]+)/i)
+const isGoogleDriveUrl = (url: string) =>
+  /drive\.google\.com\/file\/d\//i.test(url)
 
-  if (googleDriveMatch) {
-    return `https://drive.google.com/file/d/${googleDriveMatch[1]}/preview`
+const loadViewerBlob = async (material: { id: string; downloadUrl?: string | null }) => {
+  // Google Drive files can't be proxied — open externally
+  if (material.downloadUrl && isGoogleDriveUrl(material.downloadUrl)) {
+    const match = material.downloadUrl.match(/drive\.google\.com\/file\/d\/([^/]+)/i)
+    if (match) window.open(`https://drive.google.com/file/d/${match[1]}/preview`, '_blank', 'noreferrer')
+    return
   }
 
-  if (/\.pdf(?:$|[?#])/i.test(normalizedUrl)) {
-    const [baseUrl, hashFragment] = normalizedUrl.split('#', 2)
-    const existingHash = hashFragment ? `${hashFragment}&` : ''
-    return `${baseUrl}#${existingHash}toolbar=0&navpanes=0&scrollbar=0`
+  if (viewerBlobUrl.value) {
+    URL.revokeObjectURL(viewerBlobUrl.value)
+    viewerBlobUrl.value = null
   }
 
-  return normalizedUrl
+  isLoadingViewerBlob.value = true
+  try {
+    const token = getApiToken()
+    const res = await fetch(`${getApiBaseUrl()}/materials/${material.id}/view`, {
+      headers: {
+        Authorization: `Bearer ${token ?? ''}`,
+        Accept: 'application/octet-stream',
+      },
+    })
+    if (!res.ok) throw new Error('Could not load material.')
+    const blob = await res.blob()
+    viewerBlobUrl.value = URL.createObjectURL(blob)
+  } catch (err) {
+    errorMessage.value = err instanceof Error ? err.message : 'Failed to load material.'
+  } finally {
+    isLoadingViewerBlob.value = false
+  }
 }
-
-const protectedMaterialViewerUrl = computed(() => (
-  selectedMaterial.value?.downloadUrl
-    ? buildProtectedMaterialViewerUrl(selectedMaterial.value.downloadUrl)
-    : ''
-))
 const recentlyPurchasedMaterialId = computed(() =>
   typeof route.query.purchased_material === 'string' ? route.query.purchased_material : '',
 )
@@ -291,6 +305,7 @@ const viewMaterial = async (materialId: string) => {
 
     selectedMaterialId.value = materialId
     viewMode.value = 'viewer'
+    await loadViewerBlob(material)
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'Unable to open material.'
   }
@@ -316,6 +331,10 @@ const openMaterialFromRoute = async () => {
 }
 
 const closeMaterialViewer = async () => {
+  if (viewerBlobUrl.value) {
+    URL.revokeObjectURL(viewerBlobUrl.value)
+    viewerBlobUrl.value = null
+  }
   selectedMaterialId.value = ''
   viewMode.value = 'dashboard'
   await router.push('/exam-training')
@@ -420,6 +439,10 @@ watch(
     }
 
     if (viewMode.value === 'viewer') {
+      if (viewerBlobUrl.value) {
+        URL.revokeObjectURL(viewerBlobUrl.value)
+        viewerBlobUrl.value = null
+      }
       selectedMaterialId.value = ''
       viewMode.value = 'dashboard'
     }
@@ -595,13 +618,24 @@ onUnmounted(() => stopTimer())
       </div>
 
       <div class="mt-8 overflow-hidden rounded-[2rem] border border-slate-100 bg-slate-950">
-        <iframe
-          v-if="protectedMaterialViewerUrl"
-          :src="protectedMaterialViewerUrl"
-          class="h-[78vh] w-full border-0 bg-white"
-          sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
-          referrerpolicy="strict-origin-when-cross-origin"
-        />
+        <div v-if="isLoadingViewerBlob" class="flex h-[78vh] items-center justify-center">
+          <div class="flex flex-col items-center gap-4 text-slate-400">
+            <svg class="h-10 w-10 animate-spin text-primary" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+            </svg>
+            <p class="text-sm font-bold text-slate-300">Loading material…</p>
+          </div>
+        </div>
+        <div v-else-if="viewerBlobUrl" class="relative h-[78vh]">
+          <iframe
+            :src="viewerBlobUrl"
+            class="h-full w-full border-0 bg-white"
+            sandbox="allow-same-origin allow-scripts allow-forms"
+            referrerpolicy="no-referrer"
+          />
+          <div class="absolute inset-0 select-none" style="pointer-events: none;" @contextmenu.prevent />
+        </div>
         <div v-else class="px-6 py-10 text-center text-white">
           <p class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-300">Protected material</p>
           <p class="mt-4 text-base font-medium text-slate-100">

@@ -15,6 +15,7 @@ import CartView from '../views/CartView.vue'
 import ContactView from '../views/ContactView.vue'
 import ContentPageView from '../views/ContentPageView.vue'
 import ExamTrainingView from '../views/ExamTrainingView.vue'
+import MyMaterialsView from '../views/MyMaterialsView.vue'
 import HomeView from '../views/HomeView.vue'
 import MaterialsView from '../views/MaterialsView.vue'
 import { isStudentAuthenticated, resolveProtectedStudentRoute } from '../utils/studentAuth'
@@ -60,6 +61,11 @@ const routes: RouteRecordRaw[] = [
     component: ExamTrainingView,
   },
   {
+    path: '/my-materials',
+    name: 'my-materials',
+    component: MyMaterialsView,
+  },
+  {
     path: '/contact',
     name: 'contact',
     component: ContactView,
@@ -98,6 +104,10 @@ const router = createRouter({
 router.beforeEach((to) => {
   if (to.name === 'exam-training' && !isStudentAuthenticated()) {
     return resolveProtectedStudentRoute('/exam-training')
+  }
+
+  if (to.name === 'my-materials' && !isStudentAuthenticated()) {
+    return resolveProtectedStudentRoute('/my-materials')
   }
 
   if (to.path.startsWith('/admin') && !to.path.startsWith('/admin/auth') && !isAdminAuthenticated()) {

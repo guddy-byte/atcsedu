@@ -17,6 +17,7 @@ const menuItems = [
   { label: 'Free Material', path: '/materials/free' },
   { label: 'Paid Material', path: '/materials/paid' },
   { label: 'Exam Training', path: '/exam-training', requiresStudentAuth: true },
+  { label: 'My Materials', path: '/my-materials', requiresStudentAuth: true },
   { label: 'Contact Us', path: '/contact' },
 ]
 

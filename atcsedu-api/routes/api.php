@@ -20,6 +20,8 @@ Route::prefix('v1')->group(function (): void {
     Route::post('/auth/login', [AuthController::class, 'login']);
 
     Route::get('/materials', [MaterialController::class, 'index']);
+    Route::get('/materials/{material}/view', [MaterialController::class, 'view']);
+    Route::get('/materials/{material}/download', [MaterialController::class, 'download']);
     Route::get('/materials/{material}', [MaterialController::class, 'show']);
 
     Route::get('/exams', [ExamController::class, 'index']);
@@ -45,6 +47,7 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/users', [AdminUserController::class, 'index']);
             Route::delete('/users/{user}', [AdminUserController::class, 'destroy']);
 
+            Route::post('/materials/extract-zip', [AdminMaterialController::class, 'extractZip']);
             Route::apiResource('/materials', AdminMaterialController::class);
             Route::apiResource('/exams', AdminExamController::class);
 

@@ -33,9 +33,8 @@ const autoRedirectId = ref<number | null>(null)
 const continuePath = computed<RouteLocationRaw>(() => {
   if (verifiedPurchase.value?.item_type === 'material') {
     return {
-      path: '/exam-training',
+      path: '/my-materials',
       query: {
-        library: 'paid-materials',
         purchase: 'success',
         purchased_material: String(verifiedPurchase.value.item_id),
       },
@@ -48,7 +47,7 @@ const continuePath = computed<RouteLocationRaw>(() => {
 const continueLabel = computed(() => (
   verifiedPurchase.value?.item_type === 'exam'
     ? 'Continue to exam training'
-    : 'Open material in dashboard'
+    : 'View in My Materials'
 ))
 
 const verifyPayment = async () => {
@@ -153,7 +152,7 @@ onUnmounted(() => {
           v-else-if="status === 'success'"
           class="rounded-2xl border border-emerald-100 bg-emerald-50 px-5 py-4 text-sm font-medium text-emerald-700"
         >
-          Payment confirmed and access granted. Redirecting you to the correct dashboard view...
+          Payment confirmed and access granted. Redirecting you now...
         </div>
 
         <div

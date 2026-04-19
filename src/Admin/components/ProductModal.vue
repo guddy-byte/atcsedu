@@ -76,29 +76,70 @@ const removeOption = (qIdx: number, oIdx: number) => {
 const handleFileUpload = (event: any) => {
   const files = event.target.files
   if (!files || files.length === 0) return
-
-  if (props.type === 'bulk') {
-    for (let i = 0; i < files.length; i++) {
-        const file = files[i]
-        // Create title from filename (remove extension)
-        const title = file.name.replace(/\.[^/.]+$/, "")
-        
-        bulkItems.value.push({
-            ...formData,
-            title,
-            downloadUrl: `/materials/${file.name}`,
-            price: formData.price || bulkPrice.value,
-            category: formData.category || bulkCategory.value,
-            questions: []
-        })
-    }
-  } else {
-    const file = files[0]
-    formData.downloadUrl = `/materials/${file.name}`
-    if (!formData.title) {
-        formData.title = file.name.replace(/\.[^/.]+$/, "")
-    }
+  const file = files[0]
+  formData.downloadUrl = `/materials/${file.name}`
+  if (!formData.title) {
+    formData.title = file.name.replace(/\.[^/.]+$/, '')
   }
+}
+
+// ZIP bulk upload state
+const isDragOver = ref(false)
+const isExtracting = ref(false)
+const extractError = ref('')
+const samePriceInput = ref<number | null>(null)
+const showSamePriceInput = ref(false)
+
+const handleZipDrop = async (event: DragEvent) => {
+  isDragOver.value = false
+  const file = event.dataTransfer?.files?.[0]
+  if (file) await processZipFile(file)
+}
+
+const handleZipInput = async (event: Event) => {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (file) await processZipFile(file)
+}
+
+const processZipFile = async (file: File) => {
+  if (!file.name.toLowerCase().endsWith('.zip')) {
+    extractError.value = 'Please upload a .zip file. Supported file types inside: PDF, DOCX, PPT, XLSX, TXT, PNG, JPG.'
+    return
+  }
+  extractError.value = ''
+  isExtracting.value = true
+  try {
+    const files = await catalog.extractZip(file)
+    if (files.length === 0) {
+      extractError.value = 'No PDF files were found inside the ZIP.'
+      return
+    }
+    files.forEach(({ title, url, format }) => {
+      bulkItems.value.push({
+        ...formData,
+        title,
+        downloadUrl: url,
+        format: format || formData.format,
+        price: 0,
+        questions: [],
+      })
+    })
+  } catch (err) {
+    extractError.value = err instanceof Error ? err.message : 'ZIP upload failed.'
+  } finally {
+    isExtracting.value = false
+  }
+}
+
+const applySamePrice = () => {
+  if (samePriceInput.value === null || samePriceInput.value < 0) return
+  bulkItems.value = bulkItems.value.map(item => ({
+    ...item,
+    price: samePriceInput.value!,
+    accessType: 'paid' as const,
+  }))
+  showSamePriceInput.value = false
+  samePriceInput.value = null
 }
 
 const showSuccess = ref(false)
@@ -110,7 +151,12 @@ const handleSubmit = async () => {
 
   try {
     if (props.type === 'bulk') {
-      await catalog.addProductsBulk(bulkItems.value)
+      const itemsToSave = bulkItems.value.map(item => ({
+        ...item,
+        accessType: item.accessType || formData.accessType,
+        price: (item.accessType || formData.accessType) === 'free' ? 0 : (item.price || 0),
+      }))
+      await catalog.addProductsBulk(itemsToSave)
       emit('close')
       return
     }
@@ -189,9 +235,12 @@ const clearBulkQueue = () => {
 
 const isFormValid = computed(() => {
   const isPricingValid = formData.accessType === 'free' || (formData.accessType === 'paid' && formData.price > 0)
-  
+
   if (props.type === 'bulk') {
-    return bulkItems.value.length > 0
+    if (bulkItems.value.length === 0) return false
+    return bulkItems.value.every(item =>
+      item.accessType === 'free' || (item.accessType === 'paid' && (item.price ?? 0) > 0)
+    )
   }
 
   const baseValid = !!formData.title && !!formData.category && isPricingValid
@@ -214,10 +263,6 @@ const isFormValid = computed(() => {
   return false
 })
 
-const canAddToBulk = computed(() => {
-  const isPricingValid = formData.accessType === 'free' || (formData.accessType === 'paid' && formData.price > 0)
-  return !!formData.title && !!formData.category && isPricingValid && !!formData.downloadUrl
-})
 
 const questionEntryMode = ref<'manual' | 'import'>('manual')
 
@@ -275,7 +320,9 @@ const downloadTemplate = () => {
           <h3 class="text-2xl font-black text-slate-900">
             {{ type === 'bulk' ? 'Bulk Upload Materials' : (type === 'cbt' ? 'Configure CBT Exam' : 'Upload Study Material') }}
           </h3>
-          <p class="text-sm font-medium text-slate-500">Fill in the details for the new portal resource.</p>
+          <p class="text-sm font-medium text-slate-500">
+            {{ type === 'bulk' ? 'Upload a ZIP of PDFs — set access type, then configure pricing per file.' : 'Fill in the details for the new portal resource.' }}
+          </p>
         </div>
         <button @click="$emit('close')" class="h-10 w-10 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200">×</button>
       </div>
@@ -292,10 +339,13 @@ const downloadTemplate = () => {
                   <option value="paid">Paid Access</option>
                 </select>
               </label>
-              <label v-if="formData.accessType === 'paid'" class="block animate-in zoom-in-95 duration-200">
+              <label v-if="formData.accessType === 'paid' && type !== 'bulk'" class="block animate-in zoom-in-95 duration-200">
                 <span class="text-sm font-bold text-slate-700">Price (₦)</span>
                 <input v-model.number="formData.price" type="number" class="mt-1 w-full rounded-2xl border border-slate-200 p-3 text-sm focus:ring-4 focus:ring-primary/5 shadow-inner" placeholder="Enter amount" />
               </label>
+              <div v-if="type === 'bulk' && formData.accessType === 'paid'" class="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-[10px] font-bold text-amber-700 animate-in fade-in duration-200">
+                Prices are set individually per file below
+              </div>
             </div>
 
             <label v-if="type !== 'bulk'" class="block animate-in slide-in-from-top-2 duration-300">
@@ -303,19 +353,51 @@ const downloadTemplate = () => {
               <input v-model="formData.title" type="text" class="mt-1 w-full rounded-2xl border border-slate-200 p-3 text-sm focus:ring-4 focus:ring-primary/5" placeholder="e.g. Mathematics Part 1" />
             </label>
 
-            <!-- Material Selection (Bulk) -->
-            <div v-if="type === 'bulk'" class="rounded-2xl bg-primary/5 p-6 border border-primary/10">
-                <p class="text-xs font-black uppercase tracking-wider text-primary mb-3">Bulk Asset Selection</p>
-                <label class="relative flex flex-col items-center justify-center gap-4 rounded-3xl border-2 border-dashed border-primary/20 bg-white p-10 cursor-pointer hover:bg-primary/5 transition-all group">
-                    <div class="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 duration-300 transition-transform">
-                        <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" /></svg>
-                    </div>
-                    <div class="text-center">
-                        <p class="text-sm font-black text-slate-800">Select Multiple Files</p>
-                        <p class="text-[10px] font-bold text-slate-400 mt-1 uppercase">PDF, DOC, PNG, etc.</p>
-                    </div>
-                    <input type="file" multiple @change="handleFileUpload" class="absolute inset-0 opacity-0 cursor-pointer" />
-                </label>
+            <!-- ZIP Bulk Upload Zone -->
+            <div v-if="type === 'bulk'" class="rounded-2xl bg-primary/5 p-5 border border-primary/10 space-y-3">
+              <div class="flex items-center justify-between">
+                <p class="text-xs font-black uppercase tracking-wider text-primary">Upload ZIP File</p>
+                <span v-if="bulkItems.length > 0" class="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-black text-primary">
+                  {{ bulkItems.length }} file{{ bulkItems.length !== 1 ? 's' : '' }} ready
+                </span>
+              </div>
+              <label
+                class="relative flex flex-col items-center justify-center gap-4 rounded-3xl border-2 border-dashed p-10 cursor-pointer transition-all duration-200"
+                :class="isDragOver
+                  ? 'border-primary bg-primary/10 scale-[1.01]'
+                  : 'border-primary/20 bg-white hover:bg-primary/5 hover:border-primary/40'"
+                @dragover.prevent="isDragOver = true"
+                @dragleave.prevent="isDragOver = false"
+                @drop.prevent="handleZipDrop"
+              >
+                <div v-if="isExtracting" class="flex flex-col items-center gap-3 text-primary">
+                  <svg class="h-9 w-9 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                  </svg>
+                  <p class="text-sm font-black">Extracting PDFs…</p>
+                  <p class="text-[10px] font-bold text-slate-400">This may take a moment</p>
+                </div>
+                <template v-else>
+                  <div
+                    class="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-primary transition-transform duration-300"
+                    :class="isDragOver ? 'scale-110' : ''"
+                  >
+                    <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V7"/>
+                    </svg>
+                  </div>
+                  <div class="text-center">
+                    <p class="text-sm font-black text-slate-800">{{ isDragOver ? 'Release to upload' : 'Drop your ZIP file here' }}</p>
+                    <p class="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-wide">Or click to browse — ZIP containing PDF, DOCX, PPT, XLSX…</p>
+                  </div>
+                  <input type="file" accept=".zip" @change="handleZipInput" class="absolute inset-0 opacity-0 cursor-pointer" />
+                </template>
+              </label>
+              <p v-if="extractError" class="flex items-center gap-1.5 rounded-xl bg-rose-50 border border-rose-200 px-3 py-2 text-xs font-bold text-rose-600">
+                <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                {{ extractError }}
+              </p>
             </div>
 
             <div class="space-y-3">
@@ -479,48 +561,128 @@ const downloadTemplate = () => {
           </template>
 
           <template v-if="type === 'bulk'">
-             <div class="space-y-4">
+            <div class="space-y-4">
+              <!-- Header -->
+              <div class="flex items-center justify-between">
+                <div>
+                  <h4 class="font-black text-slate-800">Extracted Files</h4>
+                  <p class="text-[10px] font-bold text-slate-400">{{ bulkItems.length }} item{{ bulkItems.length !== 1 ? 's' : '' }} ready to publish</p>
+                </div>
+                <button v-if="bulkItems.length > 0" @click="clearBulkQueue" class="text-[10px] font-black uppercase text-rose-500 hover:text-rose-600 transition-colors px-2 py-1 rounded-lg hover:bg-rose-50">
+                  Clear All
+                </button>
+              </div>
+
+              <!-- Add Same Price to All — only shown for paid access with items -->
+              <div v-if="formData.accessType === 'paid' && bulkItems.length > 0" class="rounded-2xl bg-amber-50 border border-amber-200 p-4 space-y-3 animate-in fade-in duration-200">
                 <div class="flex items-center justify-between">
                   <div>
-                    <h4 class="font-black text-slate-800">Bulk Queue</h4>
-                    <p class="text-[10px] font-bold text-slate-400">Total: {{ bulkItems.length }} items</p>
+                    <p class="text-xs font-black text-amber-800">Bulk Pricing</p>
+                    <p class="text-[10px] text-amber-600 font-medium">Apply one price to all files at once</p>
                   </div>
-                  <button v-if="bulkItems.length > 0" @click="clearBulkQueue" class="text-[10px] font-black uppercase text-rose-500 hover:text-rose-600 transition-colors">
-                    Clear All
-                  </button>
-                </div>
-                
-                <div class="flex flex-col gap-2">
-                  <button 
-                    @click="addToBulkList" 
-                    :disabled="!canAddToBulk"
-                    class="w-full rounded-xl py-3.5 text-xs font-black text-white shadow-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-400"
-                    :class="canAddToBulk ? 'bg-slate-900 hover:bg-primary' : 'bg-slate-400'"
+                  <button
+                    @click="showSamePriceInput = !showSamePriceInput"
+                    class="rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-wide transition-all active:scale-95"
+                    :class="showSamePriceInput ? 'bg-slate-200 text-slate-700' : 'bg-amber-500 text-white hover:bg-amber-600 shadow-md shadow-amber-200'"
                   >
-                    {{ editingBulkIndex !== null ? '✓ Update Queued Item' : '+ Add to Bulk Queue' }}
-                  </button>
-                  <button v-if="editingBulkIndex !== null" @click="resetForm" class="w-full rounded-xl border border-slate-200 py-2.5 text-[10px] font-black uppercase text-slate-500 hover:bg-slate-50">
-                    Cancel Editing
+                    {{ showSamePriceInput ? 'Cancel' : 'Add Same Price to All' }}
                   </button>
                 </div>
+                <div v-if="showSamePriceInput" class="flex gap-2 animate-in slide-in-from-top-1 fade-in duration-150">
+                  <div class="relative flex-1">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-amber-600">₦</span>
+                    <input
+                      v-model.number="samePriceInput"
+                      type="number"
+                      min="0"
+                      placeholder="Enter price"
+                      class="w-full rounded-xl border border-amber-300 bg-white pl-7 pr-3 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-amber-300"
+                    />
+                  </div>
+                  <button
+                    @click="applySamePrice"
+                    :disabled="samePriceInput === null || samePriceInput < 0"
+                    class="rounded-xl bg-slate-900 text-white px-5 text-xs font-black hover:bg-primary transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Apply to All
+                  </button>
+                </div>
+              </div>
 
-                <div class="mt-4 space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                  <div v-for="(item, idx) in bulkItems" :key="idx" class="group relative flex items-center justify-between rounded-2xl bg-white p-4 shadow-sm border border-slate-100 transition hover:border-primary/20" :class="editingBulkIndex === idx ? 'ring-2 ring-primary/20 border-primary/30' : ''">
-                    <div class="overflow-hidden">
-                      <p class="text-sm font-black truncate text-slate-800">{{ item.title }}</p>
-                      <p class="text-[10px] font-bold text-slate-400 mt-0.5 uppercase tracking-tighter">{{ item.accessType }} • ₦{{ item.price?.toLocaleString() }} • {{ item.category }}</p>
+              <!-- Item list -->
+              <div class="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+                <div
+                  v-for="(item, idx) in bulkItems"
+                  :key="idx"
+                  class="rounded-2xl bg-white border border-slate-100 p-4 shadow-sm space-y-3 transition hover:border-primary/20 hover:shadow-md"
+                >
+                  <!-- Title + remove -->
+                  <div class="flex items-start justify-between gap-2">
+                    <div class="flex items-center gap-2 min-w-0">
+                      <div class="h-7 w-7 flex-shrink-0 rounded-lg bg-rose-50 flex items-center justify-center">
+                        <svg class="h-3.5 w-3.5 text-rose-500" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                      </div>
+                      <div class="min-w-0">
+                        <p class="text-sm font-black text-slate-800 truncate">{{ item.title }}</p>
+                        <span v-if="item.format" class="inline-block rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide bg-slate-100 text-slate-500">{{ item.format }}</span>
+                      </div>
                     </div>
-                    <div class="flex items-center gap-1">
-                      <button @click="editFromBulk(idx)" class="rounded-lg p-2 text-slate-400 hover:bg-slate-50 hover:text-primary transition-colors">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                      </button>
-                      <button @click="removeFromBulk(idx)" class="rounded-lg p-2 text-slate-300 hover:bg-rose-50 hover:text-rose-500 transition-colors">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                      </button>
+                    <button
+                      @click="removeFromBulk(idx)"
+                      class="flex-shrink-0 rounded-lg p-1.5 text-slate-300 hover:bg-rose-50 hover:text-rose-500 transition-colors"
+                    >
+                      <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                  </div>
+
+                  <!-- Category dropdown per item -->
+                  <select
+                    v-model="item.category"
+                    class="w-full rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30"
+                  >
+                    <option v-for="cat in catalog.categories" :key="cat" :value="cat">{{ cat }}</option>
+                  </select>
+
+                  <!-- Per-item price for paid access -->
+                  <div v-if="formData.accessType === 'paid'" class="animate-in fade-in duration-200">
+                    <div class="relative">
+                      <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">₦</span>
+                      <input
+                        v-model.number="item.price"
+                        type="number"
+                        min="0"
+                        placeholder="Set price"
+                        class="w-full rounded-xl border pl-7 pr-3 py-2.5 text-sm font-bold outline-none focus:ring-2 transition"
+                        :class="(!item.price || item.price <= 0)
+                          ? 'border-rose-300 bg-rose-50/30 focus:ring-rose-200'
+                          : 'border-emerald-300 bg-emerald-50/20 focus:ring-emerald-200'"
+                      />
                     </div>
+                    <p v-if="!item.price || item.price <= 0" class="mt-1 text-[10px] font-bold text-rose-500 flex items-center gap-1">
+                      <svg class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                      Price required
+                    </p>
+                  </div>
+
+                  <!-- Free badge -->
+                  <div v-else class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1">
+                    <svg class="h-3 w-3 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                    <span class="text-[10px] font-black uppercase text-emerald-700">Free Access</span>
                   </div>
                 </div>
               </div>
+
+              <!-- Empty state -->
+              <div v-if="bulkItems.length === 0 && !isExtracting" class="flex flex-col items-center justify-center py-12 text-center text-slate-400">
+                <div class="h-14 w-14 rounded-full bg-slate-100 flex items-center justify-center mb-3">
+                  <svg class="h-7 w-7 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V7"/>
+                  </svg>
+                </div>
+                <p class="text-sm font-black text-slate-500">No files yet</p>
+                <p class="text-[10px] font-bold text-slate-400 mt-1">Upload a ZIP file to get started</p>
+              </div>
+            </div>
           </template>
         </section>
       </div>

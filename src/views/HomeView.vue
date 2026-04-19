@@ -45,24 +45,6 @@ const highlights = computed(() => {
   ]
 })
 
-const quickLinks = [
-  {
-    id: 'outcomes',
-    label: 'Live totals',
-    description: 'See the current platform counts at a glance.',
-  },
-  {
-    id: 'discover',
-    label: 'Browse catalog',
-    description: 'Check what is currently published in the library.',
-  },
-  {
-    id: 'featured',
-    label: 'Latest items',
-    description: 'Review the newest live resources and exam entries.',
-  },
-]
-
 type PurchasePayload = {
   productId: string
   productType: 'material' | 'cbt'
@@ -96,24 +78,6 @@ const handleHomePurchase = async ({ productId, productType }: PurchasePayload) =
     </section>
 
     <HeroSection />
-
-    <section class="rounded-[1.8rem] border border-rose-100 bg-white p-4 shadow-[0_14px_34px_rgba(117,49,108,0.08)] sm:p-6">
-      <div class="mb-4">
-        <h2 class="text-lg font-extrabold tracking-tight text-slate-900 sm:text-xl">Quick navigation</h2>
-      </div>
-
-      <div class="grid gap-3 sm:grid-cols-3">
-        <a
-          v-for="item in quickLinks"
-          :key="item.id"
-          :href="`#${item.id}`"
-          class="rounded-2xl border border-rose-100 bg-rose-50/45 px-4 py-4 transition hover:-translate-y-0.5 hover:border-primary/35"
-        >
-          <p class="text-sm font-bold text-slate-900">{{ item.label }}</p>
-          <p class="mt-1 text-xs leading-5 text-slate-600">{{ item.description }}</p>
-        </a>
-      </div>
-    </section>
 
     <section id="outcomes" class="scroll-mt-28">
       <StatsSection :stats="highlights" />

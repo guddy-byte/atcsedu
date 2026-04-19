@@ -52,6 +52,10 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     headers.set('Authorization', `Bearer ${token}`)
   }
 
+  if (!headers.has('Accept')) {
+    headers.set('Accept', 'application/json')
+  }
+
   if (body && !(body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }

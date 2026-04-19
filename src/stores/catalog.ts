@@ -70,6 +70,12 @@ export interface ProductInput {
   isPublished?: boolean
 }
 
+export interface ZipExtractedFile {
+  title: string
+  url: string
+  format?: string
+}
+
 interface PaginatedResponse<T> {
   status: string
   data: {
@@ -177,6 +183,7 @@ const getFallbackImage = (category: string) =>
 
 const canUseStorage = typeof window !== 'undefined'
 const PURCHASE_STORAGE_KEY = 'atcsedu-purchased'
+const DOWNLOADED_FREE_STORAGE_KEY = 'atcsedu-downloaded-free'
 
 const toPurchaseKey = (productId: string, productType: Product['type']) => `${productType}:${productId}`
 
@@ -321,6 +328,7 @@ export const useCatalogStore = defineStore('catalog', () => {
   const products = ref<Product[]>([])
   const cart = ref<CartItem[]>(readStorage('atcsedu-cart', []))
   const purchasedIds = ref<string[]>(readStorage(PURCHASE_STORAGE_KEY, []))
+  const downloadedFreeIds = ref<string[]>(readStorage(DOWNLOADED_FREE_STORAGE_KEY, []))
   const categories = ref<string[]>([])
   const isLoading = ref(false)
   const hasLoaded = ref(false)
@@ -512,6 +520,29 @@ export const useCatalogStore = defineStore('catalog', () => {
     buyProduct(String(itemId), toProductType(itemType))
   }
 
+  const markFreeDownload = (materialId: string) => {
+    if (!downloadedFreeIds.value.includes(materialId)) {
+      downloadedFreeIds.value.push(materialId)
+    }
+  }
+
+  const isFreeMaterialDownloaded = (materialId: string) =>
+    downloadedFreeIds.value.includes(materialId)
+
+  const syncPurchasedMaterials = async () => {
+    const paidMaterials = products.value.filter(
+      (p) => p.type === 'material' && p.accessType === 'paid',
+    )
+    const results = await Promise.allSettled(
+      paidMaterials.map((m) => fetchMaterialDetails(m.id)),
+    )
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled' && result.value.downloadUrl) {
+        buyProduct(paidMaterials[index].id, paidMaterials[index].type)
+      }
+    })
+  }
+
   const purchaseProduct = async (productId: string, productType: Product['type']) => {
     const product = products.value.find((entry) => entry.id === productId && entry.type === productType)
 
@@ -613,6 +644,16 @@ export const useCatalogStore = defineStore('catalog', () => {
     }
   }
 
+  const extractZip = async (file: File): Promise<ZipExtractedFile[]> => {
+    const zipFormData = new FormData()
+    zipFormData.append('zip', file)
+    const response = await apiRequest<{ status: string; data: { files: ZipExtractedFile[] } }>(
+      '/admin/materials/extract-zip',
+      { method: 'POST', body: zipFormData }
+    )
+    return response.data.files
+  }
+
   const updateProduct = async (updated: ProductInput) => {
     if (!updated.id) {
       throw new Error('Missing product id for update.')
@@ -685,6 +726,14 @@ export const useCatalogStore = defineStore('catalog', () => {
     { deep: true },
   )
 
+  watch(
+    downloadedFreeIds,
+    (value) => {
+      persistStorage(DOWNLOADED_FREE_STORAGE_KEY, value)
+    },
+    { deep: true },
+  )
+
   return {
     products,
     purchasedIds,
@@ -706,10 +755,14 @@ export const useCatalogStore = defineStore('catalog', () => {
     updateQuantity,
     addProduct,
     addProductsBulk,
+    extractZip,
     updateProduct,
     deleteProduct,
     buyProduct,
     markServerPurchase,
+    markFreeDownload,
+    isFreeMaterialDownloaded,
+    syncPurchasedMaterials,
     purchaseProduct,
     addCategory: (name: string) => {
       const trimmed = name.trim()

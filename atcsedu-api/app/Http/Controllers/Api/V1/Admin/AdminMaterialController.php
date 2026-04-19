@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Material;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 class AdminMaterialController extends Controller
@@ -108,6 +110,53 @@ class AdminMaterialController extends Controller
             'status' => 'success',
             'message' => 'Material deleted',
         ]);
+    }
+
+    public function extractZip(Request $request): JsonResponse
+    {
+        $request->validate([
+            'zip' => ['required', 'file'],
+        ]);
+
+        $tmpPath = $request->file('zip')->getRealPath();
+        $zip = new \ZipArchive();
+        $openResult = $zip->open($tmpPath);
+
+        if ($openResult !== true) {
+            return response()->json(['status' => 'error', 'message' => 'Invalid or corrupt ZIP file. Please upload a valid .zip archive.'], 422);
+        }
+
+        $allowedExtensions = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'png', 'jpg', 'jpeg'];
+
+        $files = [];
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $name = $zip->getNameIndex($i);
+            // Skip macOS metadata, hidden files, directories, path traversal
+            if (str_contains($name, '__MACOSX') || str_starts_with(basename($name), '.')) continue;
+            if (str_contains($name, '..') || str_starts_with($name, '/')) continue;
+            if (str_ends_with($name, '/')) continue;
+
+            $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+            if (!in_array($ext, $allowedExtensions, true)) continue;
+
+            $bytes = $zip->getFromIndex($i);
+            $safeFilename = Str::slug(pathinfo($name, PATHINFO_FILENAME)) . '_' . uniqid() . '.' . $ext;
+            Storage::disk('public')->put("materials/{$safeFilename}", $bytes);
+
+            $title = ucwords(str_replace(['-', '_'], ' ', pathinfo($name, PATHINFO_FILENAME)));
+            $files[] = [
+                'title' => $title,
+                'url'   => Storage::disk('public')->url("materials/{$safeFilename}"),
+                'format' => strtoupper($ext),
+            ];
+        }
+        $zip->close();
+
+        if (empty($files)) {
+            return response()->json(['status' => 'error', 'message' => 'No supported files found in the ZIP. Accepted formats: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, TXT, PNG, JPG.'], 422);
+        }
+
+        return response()->json(['status' => 'success', 'data' => ['files' => $files]]);
     }
 
     private function formatMaterial(Material $material): array

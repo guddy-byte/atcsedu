@@ -2,8 +2,8 @@
 
 ## Recommended Layout
 
-- Frontend: `https://yourdomain.com`
-- Backend API: `https://api.yourdomain.com`
+- Frontend: `https://atcsedu.com.ng`
+- Backend API: `https://api.atcsedu.com.ng`
 - Frontend source: `C:\Users\USER\Herd\atcsedu`
 - Backend source: `C:\Users\USER\Herd\atcsedu\atcsedu-api`
 
@@ -14,7 +14,7 @@ This layout matches the way the app is already configured:
 
 ## Frontend Deployment
 
-1. Copy `C:\Users\USER\Herd\atcsedu\.env.production.example` to a real production env file and replace the API domain.
+1. Copy `C:\Users\USER\Herd\atcsedu\.env.production.example` to a real production env file.
 2. Build the frontend:
 
 ```powershell
@@ -23,6 +23,7 @@ npm run build
 
 3. Upload the generated `dist` contents from `C:\Users\USER\Herd\atcsedu\dist` to the folder your main domain serves.
 4. Make sure your hosting serves the frontend from the built files, not from the source project.
+5. Keep the generated `.htaccess` file in the uploaded frontend build if your host uses Apache or cPanel. It handles Vue route rewrites for paths like `/exam-training`, `/auth/login`, and `/payments/callback`.
 
 ## Backend Deployment
 
@@ -30,7 +31,7 @@ npm run build
    - database credentials
    - Paystack keys
    - mail credentials
-   - exact frontend and API URLs
+   - exact frontend and API URLs for `atcsedu.com.ng` and `api.atcsedu.com.ng`
 2. Point the API domain document root to:
 
 ```text
@@ -63,8 +64,8 @@ php artisan view:cache
 
 ## Domain And DNS
 
-1. Point `yourdomain.com` to the frontend hosting target.
-2. Point `api.yourdomain.com` to the backend hosting target.
+1. Point `atcsedu.com.ng` to the frontend hosting target.
+2. Point `api.atcsedu.com.ng` to the backend hosting target.
 3. Enable SSL for both before opening the site to users.
 4. Update `CORS_ALLOWED_ORIGINS` so it includes only your real frontend domains.
 

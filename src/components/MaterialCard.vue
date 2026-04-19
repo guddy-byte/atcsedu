@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { useCatalogStore } from '../stores/catalog'
 import type { Product } from '../stores/catalog'
+import { getApiBaseUrl, getApiToken } from '../lib/api'
 import logoImage from '../images/logo.png'
 
 const props = defineProps<{
@@ -46,14 +47,18 @@ const formattedPrice = computed(() =>
 
 const downloadUrl = computed(() => props.product.downloadUrl ?? props.product.imageUrl)
 
-const isPdfAsset = computed(() => /\.pdf(?:$|[?#])/i.test(downloadUrl.value))
+const fileExtension = computed(() => {
+  const clean = (downloadUrl.value ?? '').split('?')[0].split('#')[0]
+  return clean.split('.').pop()?.toLowerCase() ?? ''
+})
 
 const isPurchased = computed(() => catalog.isProductPurchased(props.product.id, props.product.type))
 const isUnlocked = computed(() => props.product.accessType === 'free' || isPurchased.value)
 
 const downloadFileName = computed(() => {
   const sanitizedTitle = props.product.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')
-  return isPdfAsset.value ? `${sanitizedTitle}.pdf` : sanitizedTitle
+  const ext = fileExtension.value
+  return ext ? `${sanitizedTitle}.${ext}` : sanitizedTitle
 })
 
 const statusClass = computed(() =>
@@ -62,24 +67,44 @@ const statusClass = computed(() =>
     : 'text-[13px] font-semibold text-secondary',
 )
 
-const triggerFreeDownload = () => {
-  if (typeof window === 'undefined' || !downloadUrl.value) {
-    return
+const isDownloading = ref(false)
+
+const triggerFreeDownload = async () => {
+  if (typeof window === 'undefined' || isDownloading.value) return
+
+  isDownloading.value = true
+  try {
+    const endpoint = `${getApiBaseUrl()}/materials/${props.product.id}/download`
+    const headers: Record<string, string> = { Accept: 'application/octet-stream' }
+    const token = getApiToken()
+    if (token) headers['Authorization'] = `Bearer ${token}`
+
+    const response = await fetch(endpoint, { headers })
+    if (!response.ok) throw new Error(`Download failed: ${response.status}`)
+
+    const blob = await response.blob()
+    const objectUrl = URL.createObjectURL(blob)
+
+    // Derive filename from Content-Disposition header if present, else use computed name
+    const disposition = response.headers.get('Content-Disposition') ?? ''
+    const nameMatch = disposition.match(/filename="?([^";]+)"?/i)
+    const filename = nameMatch ? nameMatch[1] : downloadFileName.value
+
+    const link = document.createElement('a')
+    link.href = objectUrl
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+
+    catalog.markFreeDownload(props.product.id)
+
+    URL.revokeObjectURL(objectUrl)
+  } catch (err) {
+    console.error('Download error:', err)
+  } finally {
+    isDownloading.value = false
   }
-
-  const link = document.createElement('a')
-  link.href = downloadUrl.value
-  link.rel = 'noreferrer'
-
-  if (isPdfAsset.value) {
-    link.download = downloadFileName.value
-  } else {
-    link.target = '_blank'
-  }
-
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
 }
 
 const openPurchasedAccess = () => {
@@ -137,10 +162,15 @@ const openPurchasedAccess = () => {
         <button
           v-if="product.accessType === 'free'"
           type="button"
-          class="inline-flex cursor-pointer items-center justify-center rounded-full bg-rose-50 px-3.5 py-2 text-[12px] font-semibold text-primary transition hover:bg-rose-100"
+          :disabled="isDownloading"
+          class="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-full bg-rose-50 px-3.5 py-2 text-[12px] font-semibold text-primary transition hover:bg-rose-100 disabled:opacity-60 disabled:cursor-wait"
           @click="triggerFreeDownload"
         >
-          Download now
+          <svg v-if="isDownloading" class="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+          </svg>
+          {{ isDownloading ? 'Downloading…' : 'Download now' }}
         </button>
 
         <span
