@@ -7,6 +7,7 @@ use App\Models\Material;
 use App\Models\Purchase;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -66,11 +67,11 @@ class MaterialController extends Controller
         ]);
     }
 
-    public function view(Request $request, Material $material): StreamedResponse|JsonResponse
+    public function view(Request $request, Material $material): JsonResponse
     {
         abort_unless($material->is_published, 404);
 
-        $isFree = $material->access_type === 'free';
+        $isFree    = $material->access_type === 'free';
         $hasAccess = $isFree || $this->userHasMaterialAccess($this->resolveAuthenticatedUser($request), $material);
 
         if (! $hasAccess) {
@@ -80,63 +81,28 @@ class MaterialController extends Controller
             ], 403);
         }
 
-        $downloadUrl = $material->download_url;
-        if (! $downloadUrl) {
+        if (! $material->download_url) {
             return response()->json(['status' => 'error', 'message' => 'No file attached to this material.'], 404);
         }
 
-        // Strip protocol so http:// vs https:// mismatches don't break the comparison
-        $stripProtocol = fn (string $url) => preg_replace('#^https?://#', '//', $url);
+        $token = $this->makeViewToken($material->id);
+        $url   = url("/api/v1/materials/{$material->id}/serve?t=" . urlencode($token));
 
-        $storageBaseUrl = rtrim(Storage::disk('public')->url(''), '/');
-        $isStorageFile  = str_starts_with($stripProtocol($downloadUrl), $stripProtocol($storageBaseUrl));
+        return response()->json(['status' => 'success', 'data' => ['url' => $url]]);
+    }
 
-        if ($isStorageFile) {
-            $relativePath = ltrim(substr($stripProtocol($downloadUrl), strlen($stripProtocol($storageBaseUrl))), '/');
+    public function serve(Request $request, Material $material): RedirectResponse|JsonResponse
+    {
+        $token = (string) $request->query('t', '');
 
-            if (! Storage::disk('public')->exists($relativePath)) {
-                return response()->json(['status' => 'error', 'message' => 'File not found on server.'], 404);
-            }
-
-            try {
-                return Storage::disk('public')->response($relativePath);
-            } catch (\Throwable) {
-                // Fallback for shared hosting environments where streamed responses fail
-                $fullPath = Storage::disk('public')->path($relativePath);
-                $mimeType = mime_content_type($fullPath) ?: 'application/octet-stream';
-
-                return response()->stream(function () use ($fullPath): void {
-                    readfile($fullPath);
-                }, 200, [
-                    'Content-Type'        => $mimeType,
-                    'Content-Disposition' => 'inline',
-                    'Cache-Control'       => 'no-store, no-cache',
-                    'X-Content-Type-Options' => 'nosniff',
-                ]);
-            }
+        if (! $this->verifyViewToken($token, $material->id)) {
+            return response()->json(['status' => 'error', 'message' => 'Invalid or expired view link.'], 403);
         }
 
-        // External URL — stream the bytes back so CORS headers are included
-        $context      = stream_context_create(['http' => ['follow_location' => true]]);
-        $fileContents = @file_get_contents($downloadUrl, false, $context);
+        abort_unless($material->is_published, 404);
+        abort_unless($material->download_url, 404);
 
-        if ($fileContents === false) {
-            return response()->json(['status' => 'error', 'message' => 'Could not retrieve the file from the remote URL.'], 502);
-        }
-
-        $mimeType = 'application/octet-stream';
-        $finfo    = new \finfo(FILEINFO_MIME_TYPE);
-        $detected = $finfo->buffer($fileContents);
-        if ($detected !== false) {
-            $mimeType = $detected;
-        }
-
-        return response()->stream(fn () => print($fileContents), 200, [
-            'Content-Type'           => $mimeType,
-            'Content-Disposition'    => 'inline',
-            'Cache-Control'          => 'no-store, no-cache',
-            'X-Content-Type-Options' => 'nosniff',
-        ]);
+        return redirect()->away($material->download_url);
     }
 
     public function download(Request $request, Material $material): StreamedResponse|JsonResponse
@@ -223,6 +189,41 @@ class MaterialController extends Controller
             'download_url' => $includeDownload ? $material->download_url : null,
             'is_published' => (bool) $material->is_published,
         ];
+    }
+
+    private function makeViewToken(int $materialId): string
+    {
+        $payload = json_encode(['id' => $materialId, 'exp' => time() + 1800]);
+        $sig     = hash_hmac('sha256', $payload, config('app.key'));
+        return rtrim(base64_encode($payload . '|' . $sig), '=');
+    }
+
+    private function verifyViewToken(string $token, int $materialId): bool
+    {
+        try {
+            $padding = strlen($token) % 4 === 0 ? 0 : 4 - strlen($token) % 4;
+            $raw     = base64_decode($token . str_repeat('=', $padding), true);
+            if ($raw === false) return false;
+
+            $sep     = strrpos($raw, '|');
+            if ($sep === false) return false;
+
+            $payload = substr($raw, 0, $sep);
+            $sig     = substr($raw, $sep + 1);
+            $data    = json_decode($payload, true);
+
+            if (
+                ! is_array($data) ||
+                ($data['id'] ?? null) !== $materialId ||
+                ($data['exp'] ?? 0) < time()
+            ) {
+                return false;
+            }
+
+            return hash_equals(hash_hmac('sha256', $payload, config('app.key')), $sig);
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     private function resolveAuthenticatedUser(Request $request): ?User

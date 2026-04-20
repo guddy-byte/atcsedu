@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { apiRequest, getApiBaseUrl, getApiToken } from '../lib/api'
-import { useCatalogStore, type Product } from '../stores/catalog'
+import { useCatalogStore } from '../stores/catalog'
 import { setPendingStudentPurchase } from '../utils/pendingStudentPurchase'
 import { isStudentAuthenticated } from '../utils/studentAuth'
 
@@ -96,7 +96,7 @@ const formatTime = (seconds: number) => {
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
 }
 
-const viewerBlobUrl = ref<string | null>(null)
+const viewerUrl = ref<string | null>(null)
 const isLoadingViewerBlob = ref(false)
 
 const isGoogleDriveUrl = (url: string) =>
@@ -110,23 +110,19 @@ const loadViewerBlob = async (material: { id: string; downloadUrl?: string | nul
     return
   }
 
-  if (viewerBlobUrl.value) {
-    URL.revokeObjectURL(viewerBlobUrl.value)
-    viewerBlobUrl.value = null
-  }
-
+  viewerUrl.value = null
   isLoadingViewerBlob.value = true
   try {
     const token = getApiToken()
     const res = await fetch(`${getApiBaseUrl()}/materials/${material.id}/view`, {
       headers: {
         Authorization: `Bearer ${token ?? ''}`,
-        Accept: 'application/octet-stream',
+        Accept: 'application/json',
       },
     })
-    if (!res.ok) throw new Error('Could not load material.')
-    const blob = await res.blob()
-    viewerBlobUrl.value = URL.createObjectURL(blob)
+    const json = await res.json()
+    if (!res.ok) throw new Error(json.message ?? 'Could not load material.')
+    viewerUrl.value = json.data.url
   } catch (err) {
     errorMessage.value = err instanceof Error ? err.message : 'Failed to load material.'
   } finally {
@@ -331,10 +327,7 @@ const openMaterialFromRoute = async () => {
 }
 
 const closeMaterialViewer = async () => {
-  if (viewerBlobUrl.value) {
-    URL.revokeObjectURL(viewerBlobUrl.value)
-    viewerBlobUrl.value = null
-  }
+  viewerUrl.value = null
   selectedMaterialId.value = ''
   viewMode.value = 'dashboard'
   await router.push('/exam-training')
@@ -439,10 +432,7 @@ watch(
     }
 
     if (viewMode.value === 'viewer') {
-      if (viewerBlobUrl.value) {
-        URL.revokeObjectURL(viewerBlobUrl.value)
-        viewerBlobUrl.value = null
-      }
+      viewerUrl.value = null
       selectedMaterialId.value = ''
       viewMode.value = 'dashboard'
     }
@@ -627,11 +617,10 @@ onUnmounted(() => stopTimer())
             <p class="text-sm font-bold text-slate-300">Loading material…</p>
           </div>
         </div>
-        <div v-else-if="viewerBlobUrl" class="relative h-[78vh]">
+        <div v-else-if="viewerUrl" class="relative h-[78vh]">
           <iframe
-            :src="viewerBlobUrl"
+            :src="viewerUrl"
             class="h-full w-full border-0 bg-white"
-            sandbox="allow-same-origin allow-scripts allow-forms"
             referrerpolicy="no-referrer"
           />
           <div class="absolute inset-0 select-none" style="pointer-events: none;" @contextmenu.prevent />

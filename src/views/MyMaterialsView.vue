@@ -86,7 +86,7 @@ const downloadFree = async (material: Product) => {
 
 // ── Paid viewer ──────────────────────────────────────────────────────────────
 const viewingMaterial = ref<Product | null>(null)
-const blobUrl = ref<string | null>(null)
+const viewerUrl = ref<string | null>(null)
 const isLoadingViewer = ref(false)
 const viewerError = ref('')
 
@@ -99,15 +99,14 @@ const openViewer = async (material: Product) => {
     const res = await fetch(`${getApiBaseUrl()}/materials/${material.id}/view`, {
       headers: {
         Authorization: `Bearer ${token ?? ''}`,
-        Accept: 'application/octet-stream',
+        Accept: 'application/json',
       },
     })
+    const json = await res.json()
     if (!res.ok)
-      throw new Error(res.status === 403 ? 'Access denied. Please purchase this material.' : 'Could not load the file.')
+      throw new Error(json.message ?? (res.status === 403 ? 'Access denied. Please purchase this material.' : 'Could not load the file.'))
 
-    const blob = await res.blob()
-    if (blobUrl.value) URL.revokeObjectURL(blobUrl.value)
-    blobUrl.value = URL.createObjectURL(blob)
+    viewerUrl.value = json.data.url
     viewingMaterial.value = material
   } catch (err) {
     viewerError.value = err instanceof Error ? err.message : 'Failed to open material.'
@@ -117,8 +116,7 @@ const openViewer = async (material: Product) => {
 }
 
 const closeViewer = () => {
-  if (blobUrl.value) URL.revokeObjectURL(blobUrl.value)
-  blobUrl.value = null
+  viewerUrl.value = null
   viewingMaterial.value = null
   viewerError.value = ''
 }
@@ -149,7 +147,6 @@ watch(
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
-  if (blobUrl.value) URL.revokeObjectURL(blobUrl.value)
 })
 </script>
 
@@ -410,11 +407,10 @@ onUnmounted(() => {
         </div>
 
         <!-- Iframe viewer -->
-        <div v-else-if="blobUrl" class="relative flex-1 overflow-hidden">
+        <div v-else-if="viewerUrl" class="relative flex-1 overflow-hidden">
           <iframe
-            :src="blobUrl"
+            :src="viewerUrl"
             class="h-full w-full border-0 bg-white"
-            sandbox="allow-same-origin allow-scripts allow-forms"
             referrerpolicy="no-referrer"
           />
           <!-- Context-menu blocker overlay (pointer-events off so iframe scrolls normally) -->

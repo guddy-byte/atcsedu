@@ -21,6 +21,7 @@ Route::prefix('v1')->group(function (): void {
 
     Route::get('/materials', [MaterialController::class, 'index']);
     Route::get('/materials/{material}/view', [MaterialController::class, 'view']);
+    Route::get('/materials/{material}/serve', [MaterialController::class, 'serve']);
     Route::get('/materials/{material}/download', [MaterialController::class, 'download']);
     Route::get('/materials/{material}', [MaterialController::class, 'show']);
 
