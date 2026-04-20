@@ -85,17 +85,58 @@ class MaterialController extends Controller
             return response()->json(['status' => 'error', 'message' => 'No file attached to this material.'], 404);
         }
 
-        $storageBaseUrl = rtrim(Storage::disk('public')->url(''), '/');
+        // Strip protocol so http:// vs https:// mismatches don't break the comparison
+        $stripProtocol = fn (string $url) => preg_replace('#^https?://#', '//', $url);
 
-        if (str_starts_with($downloadUrl, $storageBaseUrl)) {
-            $relativePath = ltrim(substr($downloadUrl, strlen($storageBaseUrl)), '/');
+        $storageBaseUrl = rtrim(Storage::disk('public')->url(''), '/');
+        $isStorageFile  = str_starts_with($stripProtocol($downloadUrl), $stripProtocol($storageBaseUrl));
+
+        if ($isStorageFile) {
+            $relativePath = ltrim(substr($stripProtocol($downloadUrl), strlen($stripProtocol($storageBaseUrl))), '/');
+
             if (! Storage::disk('public')->exists($relativePath)) {
                 return response()->json(['status' => 'error', 'message' => 'File not found on server.'], 404);
             }
-            return Storage::disk('public')->response($relativePath);
+
+            try {
+                return Storage::disk('public')->response($relativePath);
+            } catch (\Throwable) {
+                // Fallback for shared hosting environments where streamed responses fail
+                $fullPath = Storage::disk('public')->path($relativePath);
+                $mimeType = mime_content_type($fullPath) ?: 'application/octet-stream';
+
+                return response()->stream(function () use ($fullPath): void {
+                    readfile($fullPath);
+                }, 200, [
+                    'Content-Type'        => $mimeType,
+                    'Content-Disposition' => 'inline',
+                    'Cache-Control'       => 'no-store, no-cache',
+                    'X-Content-Type-Options' => 'nosniff',
+                ]);
+            }
         }
 
-        return redirect()->away($downloadUrl);
+        // External URL — stream the bytes back so CORS headers are included
+        $context      = stream_context_create(['http' => ['follow_location' => true]]);
+        $fileContents = @file_get_contents($downloadUrl, false, $context);
+
+        if ($fileContents === false) {
+            return response()->json(['status' => 'error', 'message' => 'Could not retrieve the file from the remote URL.'], 502);
+        }
+
+        $mimeType = 'application/octet-stream';
+        $finfo    = new \finfo(FILEINFO_MIME_TYPE);
+        $detected = $finfo->buffer($fileContents);
+        if ($detected !== false) {
+            $mimeType = $detected;
+        }
+
+        return response()->stream(fn () => print($fileContents), 200, [
+            'Content-Type'           => $mimeType,
+            'Content-Disposition'    => 'inline',
+            'Cache-Control'          => 'no-store, no-cache',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     public function download(Request $request, Material $material): StreamedResponse|JsonResponse
