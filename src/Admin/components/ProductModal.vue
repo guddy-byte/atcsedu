@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
 import { useCatalogStore, type ProductInput, type QuestionItem } from '../../stores/catalog'
+import { getApiBaseUrl, getApiToken } from '../../lib/api'
 
 const props = defineProps<{
   type: 'material' | 'cbt' | 'bulk'
@@ -73,13 +74,36 @@ const removeOption = (qIdx: number, oIdx: number) => {
   formData.questions?.[qIdx].options?.splice(oIdx, 1)
 }
 
-const handleFileUpload = (event: any) => {
-  const files = event.target.files
-  if (!files || files.length === 0) return
-  const file = files[0]
-  formData.downloadUrl = `/materials/${file.name}`
-  if (!formData.title) {
-    formData.title = file.name.replace(/\.[^/.]+$/, '')
+const isUploading = ref(false)
+const uploadError = ref('')
+
+const handleFileUpload = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  isUploading.value = true
+  uploadError.value = ''
+
+  const body = new FormData()
+  body.append('file', file)
+
+  try {
+    const res = await fetch(`${getApiBaseUrl()}/admin/materials/upload-file`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${getApiToken() ?? ''}` },
+      body,
+    })
+    const json = await res.json()
+    if (!res.ok) throw new Error(json.message ?? 'Upload failed')
+    formData.downloadUrl = json.data.url
+    if (!formData.format) formData.format = json.data.format
+    if (!formData.title) formData.title = file.name.replace(/\.[^/.]+$/, '')
+  } catch (err) {
+    uploadError.value = err instanceof Error ? err.message : 'Upload failed'
+  } finally {
+    isUploading.value = false
+    input.value = ''
   }
 }
 
@@ -464,13 +488,21 @@ const downloadTemplate = () => {
               </p>
             </label>
 
-            <label class="block">
-              <span class="text-sm font-bold text-slate-700">Optional filename helper</span>
-              <input type="file" @change="handleFileUpload" class="mt-1 w-full rounded-2xl border border-dashed border-slate-300 p-8 text-sm text-slate-500" />
-              <p class="mt-2 text-xs leading-5 text-slate-500">
-                This only pre-fills the title and a placeholder path. For production viewing, the URL field above should contain the real hosted material link.
+            <div class="block">
+              <span class="text-sm font-bold text-slate-700">Upload file to server</span>
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt"
+                :disabled="isUploading"
+                class="mt-1 block w-full text-sm text-slate-600 file:mr-3 file:rounded-full file:border-0 file:bg-primary/10 file:px-4 file:py-1.5 file:text-xs file:font-semibold file:text-primary hover:file:bg-primary/20 disabled:opacity-50"
+                @change="handleFileUpload"
+              />
+              <p v-if="isUploading" class="mt-1 text-xs text-slate-500">Uploading file to server…</p>
+              <p v-if="uploadError" class="mt-1 text-xs text-rose-600">{{ uploadError }}</p>
+              <p class="mt-1 text-xs text-slate-400">
+                Uploading a file stores it on the server and auto-fills the URL above. Alternatively, paste a hosted URL directly.
               </p>
-            </label>
+            </div>
           </template>
 
           <template v-if="type === 'cbt'">

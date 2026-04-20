@@ -49,6 +49,7 @@ Route::prefix('v1')->group(function (): void {
             Route::delete('/users/{user}', [AdminUserController::class, 'destroy']);
 
             Route::post('/materials/extract-zip', [AdminMaterialController::class, 'extractZip']);
+            Route::post('/materials/upload-file', [AdminMaterialController::class, 'uploadFile']);
             Route::apiResource('/materials', AdminMaterialController::class);
             Route::apiResource('/exams', AdminExamController::class);
 

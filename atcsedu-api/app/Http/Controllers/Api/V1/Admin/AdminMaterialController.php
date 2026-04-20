@@ -112,6 +112,28 @@ class AdminMaterialController extends Controller
         ]);
     }
 
+    public function uploadFile(Request $request): JsonResponse
+    {
+        $request->validate([
+            'file' => ['required', 'file', 'max:102400', 'mimes:pdf,doc,docx,ppt,pptx,xls,xlsx,txt'],
+        ]);
+
+        $file         = $request->file('file');
+        $ext          = strtolower($file->getClientOriginalExtension());
+        $safeFilename = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME))
+                        . '_' . uniqid() . '.' . $ext;
+
+        Storage::disk('public')->putFileAs('materials', $file, $safeFilename);
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => [
+                'url'    => Storage::disk('public')->url("materials/{$safeFilename}"),
+                'format' => strtoupper($ext),
+            ],
+        ]);
+    }
+
     public function extractZip(Request $request): JsonResponse
     {
         $request->validate([

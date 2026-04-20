@@ -100,9 +100,16 @@ class MaterialController extends Controller
         }
 
         abort_unless($material->is_published, 404);
-        abort_unless($material->download_url, 404);
 
-        return redirect()->away($material->download_url);
+        $downloadUrl = $material->download_url;
+        abort_unless($downloadUrl, 404);
+
+        // Relative paths (e.g. /materials/file.docx) must be resolved to an absolute storage URL
+        if (! preg_match('#^https?://#', $downloadUrl)) {
+            $downloadUrl = Storage::disk('public')->url(ltrim($downloadUrl, '/'));
+        }
+
+        return redirect()->away($downloadUrl);
     }
 
     public function download(Request $request, Material $material): StreamedResponse|JsonResponse
